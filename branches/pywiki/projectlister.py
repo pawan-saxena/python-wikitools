@@ -1,0 +1,2 @@
+def getList():
+	return {'bird': ['bird', 'bird', 'Wikipedia:WikiProject Birds/Popular pages'], 'nrhp': ['National Register of Historic Places', 'nrhp', 'Wikipedia:WikiProject National Register of Historic Places/Popular pages'], 'av': ['aviation', 'av', 'Wikipedia:WikiProject Aviation/Popular pages'], 'utsh': ['Utah road transport', 'utsh', 'Wikipedia:WikiProject Utah State Highways/Popular pages'], 'wpmi': ['Michigan', 'wpmi', 'Wikipedia:WikiProject Michigan/Popular pages'], 'guns': ['Firearms', 'guns', 'Wikipedia:WikiProject Firearms/Popular pages']}
