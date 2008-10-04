@@ -14,7 +14,7 @@ site.login("username", "password")
 def main():
 	try:
 		skip = 0
-		if not site.isLoggedIn("Mr.Z-bot"): # Make sure we're logged in before doing anything else
+		if not site.isLoggedIn("username"): # Make sure we're logged in before doing anything else
 			e = open('C:\Users\Alex\Desktop\CrashErrors.txt','w')
 			e.write("\Not Logged in\n")
 			e.close()
