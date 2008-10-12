@@ -219,17 +219,17 @@ def removePage(pagename, reason, other):
 	if not(newtext == text):
 		try:
 			page.edit(newtext=newtext, summary="Removing Temporary userpage category", minor=True, bot=True, basetime=page.lastedittime)
-		except API.APIError, (code, reason):
+			l = codecs.open('LogFile.txt', 'rb', 'utf-8')
+			cur = l.read()
+			l.close()
+			l = codecs.open('LogFile.txt', 'wb', 'utf-8')
+			l.writelines(cur + '\n# [[' + page.title.decode('utf-8') + ']] - ' + reason)
+			l.close()
+		except API.APIError, (code, errortext):
 			if code == 'protectedpage':
 				reportError(page, "Page protected")
 			else:
-				reportError(page, reason)
-		l = codecs.open('LogFile.txt', 'rb', 'utf-8')
-		cur = l.read()
-		l.close()
-		l = codecs.open('LogFile.txt', 'wb', 'utf-8')
-		l.writelines(cur + '\n# [[' + page.title.decode('utf-8') + ']] - ' + reason)
-		l.close()
+				reportError(page, errortext)
 	else:
 		reportError(page, "No change detected")
 
