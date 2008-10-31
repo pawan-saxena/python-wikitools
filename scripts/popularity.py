@@ -38,7 +38,6 @@ def main():
 	wiki.login("user")
 	db = MySQLdb.connect(host="localhost", user="user", passwd="pswd", use_unicode=True)
 	cursor = db.cursor()
-	cursor.execute('SET SQL_MODE="NO_AUTO_VALUE_ON_ZERO"')
 	cursor.execute("USE `stats`")
 	cursor.execute("CREATE TABLE IF NOT EXISTS `"+projectabbrv+"` (`title` varchar(255) collate utf8_bin NOT NULL, `hits` int(10) NOT NULL, `assess` varchar(15) collate utf8_bin NOT NULL, FULLTEXT KEY `title` (`title`)) ENGINE=MyISAM DEFAULT CHARSET=utf8 COLLATE=utf8_bin;")
 	cursor.execute("TRUNCATE TABLE `"+projectabbrv+"`")
