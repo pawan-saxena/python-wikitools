@@ -64,7 +64,7 @@ def main():
 			category = "Category:"+project+" pages"
 		else:
 			category = "Category:"+type+"-Class "+project+" articles"
-		catpage = Wiki.Category(wiki, category)
+		catpage = Category.Category(wiki, category)
 		if not catpage.exists:
 			continue
 		print ("Doing "+catpage.title)
