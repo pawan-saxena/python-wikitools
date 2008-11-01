@@ -1,5 +1,5 @@
 ﻿# coding=utf-8
-import Wiki
+from Wiki import *
 import re
 import simplejson
 import datetime
@@ -134,7 +134,7 @@ def main():
 		limit = str(pagecount*1/8)
 		headerlimit = "approximately the top 12.5% (1/8) pages"
 	numdays = calendar.monthrange(int(year), int(month))[1]
-	target = Wiki.Page(wiki, listpage)
+	target = Page.Page(wiki, listpage)
 	header = "This is a list of "+headerlimit+" ordered by number of views in "+calendar.month_name[int(month)]+" in the scope of the "+project+" WikiProject.\n\nThe data comes from http://stats.grok.se/, a site operated by [[User:Henrik|Henrik]], with data published by [[User:Midom|Domas Mituzas]] from Wikimedia's [[Squid (software)|squid]] server logs. For more information, or for a copy of the full data for all pages, leave a message on [[User talk:Mr.Z-man|this talk page]].\n\n==List==\n<!-- Changes made to this section will be overwritten on the next update. Do not change the name of this section. -->\nPeriod: "+year+"-"+month+"-01 &mdash; "+year+"-"+month+"-"+str(numdays)+" (UTC)\n\n"
 	table = header + '{| class="wikitable sortable" style="text-align: right;"\n'
 	table+= '! Rank\n! Page\n! Views\n! Views (per day average)\n! Assessment\n'

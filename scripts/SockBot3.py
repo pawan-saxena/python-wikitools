@@ -1,6 +1,5 @@
 ﻿# -*- coding: utf-8 -*-
-import API
-import Wiki
+from Wiki import *
 import re
 import codecs
 import datetime
@@ -73,7 +72,7 @@ def errorlog():
 	print "Dumping error log"
 	g = codecs.open('ErrorFile.txt','rb', 'utf-8')
 	errordump = g.read()
-	errorpage = Wiki.Page(site, 'User:Mr.Z-bot/errors')
+	errorpage = Page.Page(site, 'User:Mr.Z-bot/errors')
 	errortext = "These are pages that the bot missed for whatever reason:\n"
 	errorpage.edit(newtext = errortext + errordump, summary="Reporting errors", minor=True)
 	g.close()
@@ -81,7 +80,7 @@ def errorlog():
 	print "Dumping edit log"
 	l = codecs.open('LogFile.txt','rb', 'utf-8')
 	logdump = l.read()
-	logpage = Wiki.Page(site, 'User:Mr.Z-bot/log')
+	logpage = Page.Page(site, 'User:Mr.Z-bot/log')
 	logtext = "These are pages the bot edited and why:\n"
 	logpage.edit(logtext + logdump , summary="Edit log", minor=True)
 	l.close()
@@ -134,7 +133,7 @@ def getblocks(userstring, users):
 		print "DIMENSION MISMATCH"
 		
 def removePage(pagename, reason, other):
-	page = Wiki.Page(site, pagename)
+	page = Page.Page(site, pagename)
 	print(page.title + " - " + reason)
 	if other:
 		print(other)
