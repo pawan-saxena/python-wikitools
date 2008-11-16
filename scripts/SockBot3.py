@@ -7,14 +7,14 @@ import time
 site = Wiki.Wiki()
 userlist = {}
 print "Logging in"
-site.login("username", "password")
+site.login("user", "pass")
 q = re.compile("expiry=\"([^\"]*)\"") # Regex used for getting block expiry
 l = codecs.open('LogFile.txt', 'wb', 'utf-8')
 l.close()
 g = codecs.open('ErrorFile.txt','wb', 'utf-8')
 g.close()
 def main():
-	if not site.isLoggedIn("username"): # Make sure we're logged in before doing anything else
+	if not site.isLoggedIn("user"): # Make sure we're logged in before doing anything else
 		e = open('CrashErrors.txt','w')
 		e.write("\Not Logged in\n")
 		e.close()
@@ -48,8 +48,11 @@ def firstchecks(data):
 		page = data['query']['pages'][pageid]
 		title = page['title'].encode('utf-8')
 		if page['ns'] != 2 and page['ns'] != 3: # Namespace check, only user [talk] should be in the cat
-			removePage(title, "wrong namespace", "")
-			skip = True
+			if not title == "Category:Wikipedians who are indefinitely blocked for spamming":
+				removePage(title, "wrong namespace", "")
+				skip = True
+			else:
+				continue
 		if not skip and data['query']['pages'][pageid].has_key('templates'):
 			for tem in data['query']['pages'][pageid]['templates']:
 				if tem['title'] == "Template:Do not delete":
@@ -72,7 +75,7 @@ def errorlog():
 	print "Dumping error log"
 	g = codecs.open('ErrorFile.txt','rb', 'utf-8')
 	errordump = g.read()
-	errorpage = Page.Page(site, 'User:Mr.Z-bot/errors')
+	errorpage = Page.Page(site, 'User:user/errors')
 	errortext = "These are pages that the bot missed for whatever reason:\n"
 	errorpage.edit(newtext = errortext + errordump, summary="Reporting errors", minor=True)
 	g.close()
@@ -80,7 +83,7 @@ def errorlog():
 	print "Dumping edit log"
 	l = codecs.open('LogFile.txt','rb', 'utf-8')
 	logdump = l.read()
-	logpage = Page.Page(site, 'User:Mr.Z-bot/log')
+	logpage = Page.Page(site, 'User:user/log')
 	logtext = "These are pages the bot edited and why:\n"
 	logpage.edit(logtext + logdump , summary="Edit log", minor=True)
 	l.close()
