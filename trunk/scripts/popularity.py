@@ -1,5 +1,5 @@
 ﻿# coding=utf-8
-from Wiki import *
+from wikitools import *
 import re
 import simplejson
 import datetime
@@ -34,9 +34,9 @@ def main():
 	else:
 		print "Bad args, try 'popularity.py help' for help"
 		quit()
-	wiki = Wiki.Wiki()
-	wiki.login("user")
-	db = MySQLdb.connect(host="localhost", user="user", passwd="pswd", use_unicode=True)
+	site = wiki.Wiki()
+	site.login("user")
+	db = MySQLdb.connect(host="localhost", user="user", passwd="pass", use_unicode=True)
 	cursor = db.cursor()
 	cursor.execute("USE `stats`")
 	cursor.execute("CREATE TABLE IF NOT EXISTS `"+projectabbrv+"` (`title` varchar(255) collate utf8_bin NOT NULL, `hits` int(10) NOT NULL, `assess` varchar(15) collate utf8_bin NOT NULL, FULLTEXT KEY `title` (`title`)) ENGINE=MyISAM DEFAULT CHARSET=utf8 COLLATE=utf8_bin;")
@@ -57,14 +57,14 @@ def main():
 	for type in articletypes.keys():
 		print "Starting: " + type
 		if type == "unassessed":
-			category = "Category:Unassessed "+project+" articles"
+			cat = "Category:Unassessed "+project+" articles"
 		elif type == "non-article":
-			category = "Category:Non-article "+project+" pages"
+			cat = "Category:Non-article "+project+" pages"
 		elif type == "blank":
-			category = "Category:"+project+" pages"
+			cat = "Category:"+project+" pages"
 		else:
-			category = "Category:"+type+"-Class "+project+" articles"
-		catpage = Category.Category(wiki, category)
+			cat = "Category:"+type+"-Class "+project+" articles"
+		catpage = category.Category(site, cat)
 		if not catpage.exists:
 			continue
 		print ("Doing "+catpage.title)
@@ -105,7 +105,7 @@ def main():
 				print sys.exc_info()[2]
 	if errorcount != 0:
 		test = raw_input(str(errorcount)+' errors occured, manual input required, press Y to restart, anything else to continue: ')
-		db = MySQLdb.connect(host="localhost", user="user", passwd="pswd") # In case we lose the connection
+		db = MySQLdb.connect(host="localhost", user="user", passwd="pass") # In case we lose the connection
 		cursor = db.cursor()
 		cursor.execute("USE `stats`")
 		if test == "Y" or test == "y":
@@ -134,8 +134,8 @@ def main():
 		limit = str(pagecount*1/8)
 		headerlimit = "approximately the top 12.5% (1/8) pages"
 	numdays = calendar.monthrange(int(year), int(month))[1]
-	target = Page.Page(wiki, listpage)
-	header = "This is a list of "+headerlimit+" ordered by number of views in "+calendar.month_name[int(month)]+" in the scope of the "+project+" WikiProject.\n\nThe data comes from http://stats.grok.se/, a site operated by [[User:Henrik|Henrik]], with data published by [[User:Midom|Domas Mituzas]] from Wikimedia's [[Squid (software)|squid]] server logs. For more information, or for a copy of the full data for all pages, leave a message on [[User talk:Mr.Z-man|this talk page]].\n\n==List==\n<!-- Changes made to this section will be overwritten on the next update. Do not change the name of this section. -->\nPeriod: "+year+"-"+month+"-01 &mdash; "+year+"-"+month+"-"+str(numdays)+" (UTC)\n\n"
+	target = Page.Page(site, listpage)
+	header = "This is a list of "+headerlimit+" ordered by number of views in "+calendar.month_name[int(month)]+" in the scope of the "+project+" wiki.roject.\n\nThe data comes from http://stats.grok.se/, a site operated by [[User:Henrik|Henrik]], with data published by [[User:Midom|Domas Mituzas]] from wiki.edia's [[Squid (software)|squid]] server logs. For more information, or for a copy of the full data for all pages, leave a message on [[User talk:Mr.Z-man|this talk page]].\n\n==List==\n<!-- Changes made to this section will be overwritten on the next update. Do not change the name of this section. -->\nPeriod: "+year+"-"+month+"-01 &mdash; "+year+"-"+month+"-"+str(numdays)+" (UTC)\n\n"
 	table = header + '{| class="wikitable sortable" style="text-align: right;"\n'
 	table+= '! Rank\n! Page\n! Views\n! Views (per day average)\n! Assessment\n'
 	print "Table started"

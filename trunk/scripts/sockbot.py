@@ -1,10 +1,10 @@
 ﻿# -*- coding: utf-8 -*-
-from Wiki import *
+from wikitools import *
 import re
 import codecs
 import datetime
 import time
-site = Wiki.Wiki()
+site = wiki.Wiki()
 userlist = {}
 print "Logging in"
 site.login("user", "pass")
@@ -29,7 +29,7 @@ def main():
 		'gcmlimit':'1000',
 		'indexpageids':'1',
 	}
-	req = API.APIRequest(site, params)
+	req = api.APIRequest(site, params)
 	data = req.query()
 	userlist = {}
 	print "Starting checks..."
@@ -45,9 +45,9 @@ def firstchecks(data):
 	p = re.compile("(User|User talk):(.*?)\/.*")
 	skip = False
 	for pageid in data['query']['pageids']:
-		page = data['query']['pages'][pageid]
-		title = page['title'].encode('utf-8')
-		if page['ns'] != 2 and page['ns'] != 3: # Namespace check, only user [talk] should be in the cat
+		userpage = data['query']['pages'][pageid]
+		title = userpage['title'].encode('utf-8')
+		if userpage['ns'] != 2 and userpage['ns'] != 3: # Namespace check, only user [talk] should be in the cat
 			if not title == "Category:Wikipedians who are indefinitely blocked for spamming":
 				removePage(title, "wrong namespace", "")
 				skip = True
@@ -64,9 +64,9 @@ def firstchecks(data):
 				username = p.sub(r'\2', title)
 			else:
 				username = title
-				if page['ns'] == 2:
+				if userpage['ns'] == 2:
 					username = username.replace( "User:", "", 1)
-				if page['ns'] == 3:
+				if userpage['ns'] == 3:
 					username = username.replace( "User talk:", "", 1)
 			userlist[username] = title
 		skip = False
@@ -75,7 +75,7 @@ def errorlog():
 	print "Dumping error log"
 	g = codecs.open('ErrorFile.txt','rb', 'utf-8')
 	errordump = g.read()
-	errorpage = Page.Page(site, 'User:user/errors')
+	errorpage = page.Page(site, 'User:user/errors')
 	errortext = "These are pages that the bot missed for whatever reason:\n"
 	errorpage.edit(newtext = errortext + errordump, summary="Reporting errors", minor=True)
 	g.close()
@@ -83,7 +83,7 @@ def errorlog():
 	print "Dumping edit log"
 	l = codecs.open('LogFile.txt','rb', 'utf-8')
 	logdump = l.read()
-	logpage = Page.Page(site, 'User:user/log')
+	logpage = page.Page(site, 'User:user/log')
 	logtext = "These are pages the bot edited and why:\n"
 	logpage.edit(logtext + logdump , summary="Edit log", minor=True)
 	l.close()
@@ -112,7 +112,7 @@ def getblocks(userstring, users):
 		'list': 'blocks', 
 		'bkusers': userstring, 
 		'bklimit':'5000' } 
-	req = API.APIRequest(site, predata)
+	req = api.APIRequest(site, predata)
 	data = req.query()
 	for entry in data['query']['blocks']:
 		blockeduserlist.append(entry['user'])
@@ -136,11 +136,11 @@ def getblocks(userstring, users):
 		print "DIMENSION MISMATCH"
 		
 def removePage(pagename, reason, other):
-	page = Page.Page(site, pagename)
-	print(page.title + " - " + reason)
+	userpage = page.Page(site, pagename)
+	print(userpage.title + " - " + reason)
 	if other:
 		print(other)
-	text = page.getWikiText()
+	text = userpage.getWikiText()
 	newtext = re.sub(r'\[\[Category:Temporary Wikipedian userpages.*?\]\]', '', text)
 	newtext = newtext.replace('{{legalthreatblock}}', '{{tl|Legalthreatblock}}')
 	newtext = newtext.replace('{{Legalthreatblock}}', '{{tl|Legalthreatblock}}')
@@ -220,28 +220,28 @@ def removePage(pagename, reason, other):
 	
 	if not(newtext == text):
 		try:
-			page.edit(newtext=newtext, summary="Removing Temporary userpage category", minor=True, bot=True, basetime=page.lastedittime)
+			userpage.edit(newtext=newtext, summary="Removing Temporary userpage category", minor=True, bot=True, basetime=userpage.lastedittime)
 			l = codecs.open('LogFile.txt', 'rb', 'utf-8')
 			cur = l.read()
 			l.close()
 			l = codecs.open('LogFile.txt', 'wb', 'utf-8')
-			l.writelines(cur + '\n# [[' + page.title.decode('utf-8') + ']] - ' + reason)
+			l.writelines(cur + '\n# [[' + userpage.title.decode('utf-8') + ']] - ' + reason)
 			l.close()
-		except API.APIError, (code, errortext):
+		except api.APIError, (code, errortext):
 			if code == 'protectedpage':
-				reportError(page, "Page protected")
+				reportError(userpage, "Page protected")
 			else:
-				reportError(page, errortext)
+				reportError(userpage, errortext)
 	else:
-		reportError(page, "No change detected")
+		reportError(userpage, "No change detected")
 
-def reportError(page, error):
+def reportError(userpage, error):
 	g = codecs.open('ErrorFile.txt','rb', 'utf-8')
 	cur = g.read()
 	g.close()
 	g = codecs.open('ErrorFile.txt','wb', 'utf-8')
-	g.writelines(cur + '\n# [['+page.title.decode('utf-8')+']] ' + error)
-	print( "ERROR on: " + page.pageid)
+	g.writelines(cur + '\n# [['+userpage.title.decode('utf-8')+']] ' + error)
+	print( "ERROR on: " + userpage.pageid)
 	g.close() 
 		
 if __name__ == '__main__':
