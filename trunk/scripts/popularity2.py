@@ -16,7 +16,7 @@ pagelist = set()
 def startup():
 	projectlist = projectlister.getList()
 	if len(sys.argv) == 2 and (sys.argv[1] == "h" or sys.argv[1] == "help"):
-		print "arg 1 = project (for categories), quotes may be necessary - Case Sensitive OR abbrev for previous projects"
+		print "arg 1 = project (for categories), quotes may be necessary - Case Sensitive"
 		print "arg 2 = project abbrev, for db table"
 		print "arg 3 = list page, where to save the list"
 		print projectlist.keys()
@@ -25,9 +25,12 @@ def startup():
 		project = sys.argv[1]
 		projectabbrv = sys.argv[2]
 		listpage = sys.argv[3]
-		projectlist[projectabbrv] = [project, projectabbrv, listpage]
-		f = open("projectlister.py", "w")
-		f.write("def getList():\n	return "+str(projectlist))
+		projectlist[projectabbrv] = [project, listpage]
+		f = open("projectlister.py", "rb")
+		content = f.read()
+		f = open("projectlister.py", "wb")
+		content = content.replace('\n}', "\n	'"+projectabbrv+"': ['"+project+"', '"+listpage+"'],\n}")
+		f.write(content)
 		f.close()
 	elif len(sys.argv) == 1:
 		main(projectlist)
@@ -56,7 +59,7 @@ def main(projectlist):
 		cursor.execute("TRUNCATE TABLE `popularity`")
 		threadqueue = []
 		for project in projectlist.keys():
-			abbrv = projectlist[project][1]
+			abbrv = project
 			name = projectlist[project][0]
 			setupProject(name, abbrv)
 	query = 'SELECT DISTINCT hash FROM popularity'
@@ -89,7 +92,8 @@ def main(projectlist):
 	qh.kill()
 	while qh.isAlive():
 		logMsg("Waiting for querythread to stop: "+str(len(queryreq))+" queries remaining")
-		sleep(10)		
+		sleep(10)
+			
 
 def	processPage(url):	
 	lines = 0

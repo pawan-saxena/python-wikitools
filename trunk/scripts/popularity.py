@@ -1,42 +1,36 @@
 ﻿# coding=utf-8
 from wikitools import *
-import re
-import simplejson
-import datetime
-import MySQLdb
-import time
-import locale
-import urllib
-import sys
-import projectlister
-import calendar
+import re, simplejson, datetime, MySQLdb, time, locale, urllib, sys, projectlister, calendar, settings
 
 def main():
-	projectlist = projectlister.getList()
+	projectlist = projectlister.projects
 	if (len(sys.argv) != 2 and len(sys.argv) != 4) or sys.argv[1] == "h" or sys.argv[1] == "help":
 		print "arg 1 = project (for categories), quotes may be necessary - Case Sensitive OR abbrev for previous projects"
 		print "arg 2 = project abbrev, for db table"
 		print "arg 3 = list page, where to save the list"
 		print projectlist.keys()
 		quit()
-	if projectlist.has_key(sys.argv[1]):
+	if sys.argv[1] in projectlist:
+		projectabbrv = sys.argv[1]
 		project = projectlist[sys.argv[1]][0]
-		projectabbrv = projectlist[sys.argv[1]][1]
-		listpage = projectlist[sys.argv[1]][2]
+		listpage = projectlist[sys.argv[1]][1]
 	elif len(sys.argv) == 4:
 		project = sys.argv[1]
 		projectabbrv = sys.argv[2]
 		listpage = sys.argv[3]
-		projectlist[projectabbrv] = [project, projectabbrv, listpage]
-		f = open("projectlister.py", "w")
-		f.write("def getList():\n	return "+str(projectlist))
+		projectlist[projectabbrv] = [project, listpage]
+		f = open("projectlister.py", "rb")
+		content = f.read()
+		f = open("projectlister.py", "wb")
+		content = content.replace('\n}', "\n	'"+projectabbrv+"': ['"+project+"', '"+listpage+"'],\n}")
+		f.write(content)
 		f.close()
 	else:
 		print "Bad args, try 'popularity.py help' for help"
 		quit()
 	site = wiki.Wiki()
-	site.login("user")
-	db = MySQLdb.connect(host="localhost", user="user", passwd="pass", use_unicode=True)
+	site.login(settings.bot, settings.botpass)
+	db = MySQLdb.connect(host="localhost", user=settings.dbuser, passwd=settings.dbpass, use_unicode=True)
 	cursor = db.cursor()
 	cursor.execute("USE `stats`")
 	cursor.execute("CREATE TABLE IF NOT EXISTS `"+projectabbrv+"` (`title` varchar(255) collate utf8_bin NOT NULL, `hits` int(10) NOT NULL, `assess` varchar(15) collate utf8_bin NOT NULL, FULLTEXT KEY `title` (`title`)) ENGINE=MyISAM DEFAULT CHARSET=utf8 COLLATE=utf8_bin;")
@@ -69,13 +63,13 @@ def main():
 			continue
 		print ("Doing "+catpage.title)
 		totalcount = 0
-		for page in catpage.getAllMembersGen():
-			if not page.isTalk():
+		for article in catpage.getAllMembersGen():
+			if not article.isTalk():
 				continue
 			totalcount+=1
 			if totalcount%500 == 0:
 				print totalcount
-			realtitle = page.toggleTalk(False, False)
+			realtitle = article.toggleTalk(False, False)
 			try:
 				query = 'SELECT * FROM '+projectabbrv+' WHERE title = %s'
 				bits = (realtitle.title.encode('utf-8'),)
@@ -105,7 +99,7 @@ def main():
 				print sys.exc_info()[2]
 	if errorcount != 0:
 		test = raw_input(str(errorcount)+' errors occured, manual input required, press Y to restart, anything else to continue: ')
-		db = MySQLdb.connect(host="localhost", user="user", passwd="pass") # In case we lose the connection
+		db = MySQLdb.connect(host="localhost", user=settings.dbuser, passwd=settings.dbpass) # In case we lose the connection
 		cursor = db.cursor()
 		cursor.execute("USE `stats`")
 		if test == "Y" or test == "y":
