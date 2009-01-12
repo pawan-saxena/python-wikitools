@@ -1,9 +1,7 @@
 # -*- coding: utf-8 -*-
 from wikitools import *
-import threading, urllib, gzip, projectlister, MySQLdb, sys, datetime, re, httplib, os, settings
+import threading, urllib, gzip, projectlister, MySQLdb, sys, datetime, re, os, settings, hashlib
 from time import sleep
-from calendar import monthrange
-import hashlib
 
 articletypes = {'unassessed':'{{unassessed-Class}}', 'image':'{{image-Class}}', 'template':'{{template-Class}}', 'category':'{{category-Class}}', 'disambig':'{{disambig-Class}}', 'portal':'{{portal-Class}}', 'list':'{{list-Class}}', 'redirect':'{{redirect-Class}}', 'non-article':'{{NA-Class}}', 'blank':'{{NA-Class}}', 'stub':'{{stub-Class}}', 'start':'{{start-Class}}', 'C':'{{C-Class}}', 'B':'{{B-Class}}', 'GA':'{{GA-Class}}', 'A':'{{A-Class}}', 'FL':'{{FL-Class}}', 'FA':'{{FA-Class}}'} # This should cover most instances, some projects have some odd ones
 
@@ -14,7 +12,7 @@ queryreq = []
 pagelist = set()
 
 def startup():
-	projectlist = projectlister.getList()
+	projectlist = projectlister.projects
 	if len(sys.argv) == 2 and (sys.argv[1] == "h" or sys.argv[1] == "help"):
 		print "arg 1 = project (for categories), quotes may be necessary - Case Sensitive"
 		print "arg 2 = project abbrev, for db table"
@@ -46,15 +44,6 @@ def main(projectlist):
 	f.write("")
 	f.close()
 	day = (datetime.datetime.now()-datetime.timedelta(1)).day
-	month = datetime.datetime.now().month
-	if month < 10:
-		month =  "0" + str(month)
-	else:
-		month = str(month)
-	logMsg("Month is: " + month)
-	logMsg("Day is: " + str(day))
-	sleep(3)
-	year = str(datetime.datetime.now().year)
 	if day == 1 or 1==1:
 		cursor.execute("TRUNCATE TABLE `popularity`")
 		threadqueue = []
@@ -69,25 +58,20 @@ def main(projectlist):
 	for row in res:
 		pagelist.add(row[0])
 	db.close()
-	maxday = monthrange(int(year), int(month))[1]
-	hour = 0
-	if day < 10:
-		sday = "0"+str(day)
-	else:
-		sday = str(day)
 	qh = QueryThread()
 	qh.start()
+	count = 0
 	while True:
-		if hour < 10:
-			shour = "0"+str(hour)
+		if not os.listdir("C:\Python25\MediaWiki\statspages"):
+			logMsg("No files ready")
+			sleep(10)
 		else:
-			shour = str(hour)
-		datapage = year+month+sday+"-"+shour+"0000"
-		url = "http://dammit.lt/wikistats/pagecounts-"+datapage+".gz"
-		processPage(url)
-		hour+=1
-		if hour == 24:
-			break
+			f = os.listdir("C:\\Python25\\MediaWiki\\statspages")[0]
+			os.rename("C:\\Python25\\MediaWiki\\statspages\\"+f, "C:\\Python25\\MediaWiki\\inprogress\\"+f)
+			processPage("C:\\Python25\\MediaWiki\\inprogress\\"+f)
+			count+=1
+			if count == 24:
+				break
 	sleep(10)
 	qh.kill()
 	while qh.isAlive():
@@ -95,37 +79,17 @@ def main(projectlist):
 		sleep(10)
 			
 
-def	processPage(url):	
+def	processPage(fileloc):	
 	lines = 0
 	count = 0
-	logMsg("Downloading "+url)
-	conn = httplib.HTTPConnection('dammit.lt')
-	testurl = url.split('http://dammit.lt')[1]
-	conn.request('HEAD', testurl)
-	r1 = conn.getresponse()
-	if r1.status == 404:
-		url = re.sub("-(\d{2})0000", r"- \1 0001", url)
-		url = re.sub(" ", "", url)
-		testurl = url.split('http://dammit.lt')[1]
-		conn = httplib.HTTPConnection('dammit.lt')
-		conn.request('HEAD', testurl)
-		r1 = conn.getresponse()
-		if r1.status == 404:
-			logMsg("Warning: "+url+" seems to be missing")
-			return
-	conn.close()
-	fileloc = "C:/Python25/MediaWiki/statspages/"+url.split('http://dammit.lt/wikistats/')[1]
-	f = open(fileloc, 'wb')
-	f.close()
-	page = urllib.urlretrieve(url, fileloc)
-	logMsg("Processing "+url)
+	logMsg("Processing "+fileloc)
 	file = open(fileloc, 'rb')
 	datapage = gzip.GzipFile('', 'rb', 9, file)
 	global queryreq
 	for line in datapage:
 		lines+=1
 		if lines%50000 == 0:
-			logMsg(url+ " at "+str(lines)+" lines")
+			logMsg(fileloc+ " at "+str(lines)+" lines")
 		if not line or not line.startswith('en '):
 			if count > 0:
 				break
@@ -138,11 +102,11 @@ def	processPage(url):
 			qbits = (bits[2], key)
 			queryreq.append(qbits)
 			if count%5000 == 0:
-				logMsg(url+ " at "+str(count)+" hits")
+				logMsg(fileloc+ " at "+str(count)+" hits")
 	file.close()
 	datapage.close()
 	os.remove(fileloc)
-	logMsg(url+ " finished")
+	logMsg(fileloc+ " finished")
 
 def setupProject(project, abbrv):
 	logMsg("Setting up "+project)
