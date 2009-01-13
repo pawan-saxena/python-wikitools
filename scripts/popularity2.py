@@ -79,7 +79,7 @@ def main(projectlist):
 		sleep(10)
 			
 
-def	processPage(fileloc):	
+def processPage(fileloc):	
 	lines = 0
 	count = 0
 	logMsg("Processing "+fileloc)

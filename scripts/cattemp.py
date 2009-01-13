@@ -4,17 +4,20 @@ import re
 import codecs
 import datetime
 import time
+import settings
 site = wiki.Wiki()
 userlist = {}
 print "Logging in"
-site.login("user", "pass")
+site.login(settings.bot, settings.botpass)
 q = re.compile("expiry=\"([^\"]*)\"") # Regex used for getting block expiry
 l = codecs.open('LogFile.txt', 'wb', 'utf-8')
 l.close()
 g = codecs.open('ErrorFile.txt','wb', 'utf-8')
 g.close()
+titlewhitelist = ["Category:Wikipedians who are indefinitely blocked for spamming"]
+
 def main():
-	if not site.isLoggedIn("user"): # Make sure we're logged in before doing anything else
+	if not site.isLoggedIn(settings.bot): # Make sure we're logged in before doing anything else
 		e = open('CrashErrors.txt','w')
 		e.write("\Not Logged in\n")
 		e.close()
@@ -23,36 +26,64 @@ def main():
 	params = {'action':'query',
 		'generator':'categorymembers',
 		'gcmtitle':'Category:Temporary Wikipedian userpages',
-		'prop':'templates',
+		'prop':'templates|revisions',
+		'rvprop':'timestamp',
 		'tlnamespace':'10',
 		'tllimit':'5000',
 		'gcmlimit':'1000',
 		'indexpageids':'1',
 	}
 	req = api.APIRequest(site, params)
+	global data
 	data = req.query()
 	userlist = {}
 	print "Starting checks..."
-	if isinstance(data, list):
-		for page in data:
-			userlist = firstchecks(page)
-	else:
-		userlist = firstchecks(data)	
+	userlist = firstchecks()	
 	blockcheck()
+	deletePages()
 	errorlog()
-	
-def firstchecks(data):
+
+def deletePages():
+	print "Deleting old pages..."
+	log = []
+	for pageid in data['query']['pages'].keys():
+		if data['query']['pages'][pageid]['title'] in titlewhitelist:
+			continue
+		ts = data['query']['pages'][pageid]['revisions'][0]['timestamp']
+		date = timestampToDate(ts)
+		diff = date.today() - date
+		if diff.days > 30:
+			p = page.Page(site, title=data['query']['pages'][pageid]['title'], check=False, pageid=pageid)
+			try:
+				print("Deleting "+ p.title)
+			except:
+				print("Deleting" + p.pageid)
+			log.append((p.title, ts))
+			# LOG ONLY
+			# res = p.delete(reason="Old [[CAT:TEMP|temporary userpage")
+			# if not p.exists:
+				# l = codecs.open('LogFile.txt', 'ab', 'utf-8')
+				# l.write('\n# [[' + p.title + ']] - deleted')
+				# l.close()
+			# else:
+				# reportError(p, "Deletion error"+res['error']['code'])		
+	testlog = page.Page(site, settings.bot+"/testing")
+	cont = unicode('', 'utf8')
+	for entry in log:
+		cont+='* [['+entry[0]+']] - '+entry[1]+'\n'
+	testlog.edit(newtext=cont.encode('utf8'), summary="Testing", minor=True, bot=True)
+		
+def firstchecks():
 	p = re.compile("(User|User talk):(.*?)\/.*")
 	skip = False
-	for pageid in data['query']['pageids']:
+	for pageid in data['query']['pages'].keys():
 		userpage = data['query']['pages'][pageid]
 		title = userpage['title'].encode('utf-8')
+		if title in titlewhitelist:
+			continue
 		if userpage['ns'] != 2 and userpage['ns'] != 3: # Namespace check, only user [talk] should be in the cat
-			if not title == "Category:Wikipedians who are indefinitely blocked for spamming":
-				removePage(title, "wrong namespace", "")
-				skip = True
-			else:
-				continue
+			removePage(title, "wrong namespace", "")
+			skip = True
 		if not skip and data['query']['pages'][pageid].has_key('templates'):
 			for tem in data['query']['pages'][pageid]['templates']:
 				if tem['title'] == "Template:Do not delete":
@@ -75,7 +106,7 @@ def errorlog():
 	print "Dumping error log"
 	g = codecs.open('ErrorFile.txt','rb', 'utf-8')
 	errordump = g.read()
-	errorpage = page.Page(site, 'User:user/errors')
+	errorpage = page.Page(site, settings.bot+'/errors')
 	errortext = "These are pages that the bot missed for whatever reason:\n"
 	errorpage.edit(newtext = errortext + errordump, summary="Reporting errors", minor=True)
 	g.close()
@@ -83,7 +114,7 @@ def errorlog():
 	print "Dumping edit log"
 	l = codecs.open('LogFile.txt','rb', 'utf-8')
 	logdump = l.read()
-	logpage = page.Page(site, 'User:user/log')
+	logpage = page.Page(site, settings.bot+'/log')
 	logtext = "These are pages the bot edited and why:\n"
 	logpage.edit(logtext + logdump , summary="Edit log", minor=True)
 	l.close()
@@ -117,27 +148,40 @@ def getblocks(userstring, users):
 	for entry in data['query']['blocks']:
 		blockeduserlist.append(entry['user'])
 		if not entry['expiry'] == "infinity":
-				date = entry['expiry']
-				year = re.search("\d\d\d\d", date).group(0)
-				month = re.search("\d\d\d\d-(\d\d)-(\d\d)", date).group(1)
-				day = re.search("\d\d\d\d-(\d\d)-(\d\d)", date).group(2)
-				date = datetime.date(int(year), int(month), int(day))
+				timestamp = entry['expiry']
+				date = timestampToDate(timestamp)
 				diff = date - date.today()
 				if diff.days < 300:
 					removePage(userlist[entry['user']], "not indef blocked", date)
 	total = len(users) - len(blockeduserlist)
 	counter = 0
+	pagesToRemove = []
 	for user in users:
 		if blockeduserlist.count(user.decode('utf-8')) == 0:
 			counter+=1
-			removePage(userlist[user], "not blocked", "")
-	# TODO: Should wait until after this sanity check to remove the pages
-	if total != counter:
-		print "DIMENSION MISMATCH"
-		
+			pagesToRemove.append(userlist[user])
+	if total == counter:
+		for page in pagesToRemove:
+			removePage(page, "not blocked", "")
+	else:
+		print "Block check error"
+		for page in pagesToRemove:
+			reportError(page, "Block check error")
+			
+def timestampToDate(timestamp):
+	year = re.search("\d\d\d\d", timestamp).group(0)
+	month = re.search("\d\d\d\d-(\d\d)-(\d\d)", timestamp).group(1)
+	day = re.search("\d\d\d\d-(\d\d)-(\d\d)", timestamp).group(2)
+	date = datetime.date(int(year), int(month), int(day))
+	return date
+	
 def removePage(pagename, reason, other):
 	userpage = page.Page(site, pagename)
-	print(userpage.title + " - " + reason)
+	del data['query']['pages'][userpage.pageid]
+	try:
+		print(userpage.title + " - " + reason)
+	except:
+		print(userpage.pageid + " - " + reason)
 	if other:
 		print(other)
 	text = userpage.getWikiText()
@@ -221,11 +265,8 @@ def removePage(pagename, reason, other):
 	if not(newtext == text):
 		try:
 			userpage.edit(newtext=newtext, summary="Removing Temporary userpage category", minor=True, bot=True, basetime=userpage.lastedittime)
-			l = codecs.open('LogFile.txt', 'rb', 'utf-8')
-			cur = l.read()
-			l.close()
-			l = codecs.open('LogFile.txt', 'wb', 'utf-8')
-			l.writelines(cur + '\n# [[' + userpage.title.decode('utf-8') + ']] - ' + reason)
+			l = codecs.open('LogFile.txt', 'ab', 'utf-8')
+			l.write('\n# [[' + userpage.title + ']] - ' + reason)
 			l.close()
 		except api.APIError, (code, errortext):
 			if code == 'protectedpage':
@@ -236,11 +277,8 @@ def removePage(pagename, reason, other):
 		reportError(userpage, "No change detected")
 
 def reportError(userpage, error):
-	g = codecs.open('ErrorFile.txt','rb', 'utf-8')
-	cur = g.read()
-	g.close()
-	g = codecs.open('ErrorFile.txt','wb', 'utf-8')
-	g.writelines(cur + '\n# [['+userpage.title.decode('utf-8')+']] ' + error)
+	g = codecs.open('ErrorFile.txt','ab', 'utf-8')
+	g.write('\n# [['+userpage.title+']] ' + error)
 	print( "ERROR on: " + userpage.pageid)
 	g.close() 
 		
