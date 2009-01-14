@@ -9,7 +9,6 @@ site = wiki.Wiki()
 userlist = {}
 print "Logging in"
 site.login(settings.bot, settings.botpass)
-q = re.compile("expiry=\"([^\"]*)\"") # Regex used for getting block expiry
 l = codecs.open('LogFile.txt', 'wb', 'utf-8')
 l.close()
 g = codecs.open('ErrorFile.txt','wb', 'utf-8')
