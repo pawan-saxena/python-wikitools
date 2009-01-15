@@ -90,10 +90,13 @@ def firstchecks():
 		if not skip and userpage['ns'] == 3:
 			tp = page.Page(site, title, check=False)
 			up = tp.toggleTalk(check=False)
-			tems = up.getTemplates
-			if "Template:Do not delete" in tems:
-				removePage(title, "{{tl|do not delete}} on userpage", "")
-				continue
+			try:
+				tems = up.getTemplates
+				if "Template:Do not delete" in tems:
+					removePage(title, "{{tl|do not delete}} on userpage", "")
+					continue
+			except page.NoPage: # userpage doesn't exist
+				pass
 		if not skip:
 			if title.find('/') != -1:
 				username = p.sub(r'\2', title)
