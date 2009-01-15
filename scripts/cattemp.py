@@ -1,10 +1,7 @@
 ﻿# -*- coding: utf-8 -*-
 from wikitools import *
-import re
-import codecs
-import datetime
-import time
-import settings
+import re, codecs, datetime, time, settings, os
+
 site = wiki.Wiki()
 userlist = {}
 print "Logging in"
@@ -13,14 +10,14 @@ l = codecs.open('LogFile.txt', 'wb', 'utf-8')
 l.close()
 g = codecs.open('ErrorFile.txt','wb', 'utf-8')
 g.close()
+dl = codecs.open('DelLogFile.txt', 'wb', 'utf-8')
+dl.close()
+de = codecs.open('DelErrorFile.txt','wb', 'utf-8')
+de.close()
 titlewhitelist = ["Category:Wikipedians who are indefinitely blocked for spamming"]
 
 def main():
-	if not site.isLoggedIn(settings.bot): # Make sure we're logged in before doing anything else
-		e = open('CrashErrors.txt','w')
-		e.write("\Not Logged in\n")
-		e.close()
-		quit()
+	logincheck(settings.bot) # Make sure we're logged in before doing anything else
 	print "Starting..."
 	params = {'action':'query',
 		'generator':'categorymembers',
@@ -41,8 +38,15 @@ def main():
 	blockcheck()
 	deletePages()
 	errorlog()
+	os.remove('LogFile.txt')
+	os.remove('ErrorFile.txt')
+	os.remove('DelErrorFile.txt')
+	os.remove('DelLogFile.txt')	
 
 def deletePages():
+	site.logout()
+	site.login(settings.adminbot, settings.adminbotpass)
+	logincheck(settings.adminbot)
 	print "Deleting old pages..."
 	log = []
 	for pageid in data['query']['pages'].keys():
@@ -57,20 +61,14 @@ def deletePages():
 				print("Deleting "+ p.title)
 			except:
 				print("Deleting" + p.pageid)
-			log.append((p.title, ts))
-			# LOG ONLY
-			# res = p.delete(reason="Old [[CAT:TEMP|temporary userpage")
-			# if not p.exists:
-				# l = codecs.open('LogFile.txt', 'ab', 'utf-8')
-				# l.write('\n# [[' + p.title + ']] - deleted')
-				# l.close()
-			# else:
-				# reportError(p, "Deletion error"+res['error']['code'])		
-	testlog = page.Page(site, settings.bot+"/testing")
-	cont = unicode('', 'utf8')
-	for entry in log:
-		cont+='* [['+entry[0]+']] - '+entry[1]+'\n'
-	testlog.edit(newtext=cont.encode('utf8'), summary="Testing", minor=True, bot=True)
+			res = p.delete(reason="Old [[CAT:TEMP|temporary userpage]]")
+			if not p.exists:
+				dl = codecs.open('DelLogFile.txt', 'ab', 'utf-8')
+				dl.write('\n# [[' + p.title + ']]')
+				dl.close()
+			else:
+				reportError(p, "Deletion error: "+res['error']['code'], True)
+	site.logout()
 		
 def firstchecks():
 	p = re.compile("(User|User talk):(.*?)\/.*")
@@ -102,21 +100,41 @@ def firstchecks():
 		skip = False
 	
 def errorlog():
+	site.login(settings.bot, settings.botpass)
+	logincheck(settings.bot)
 	print "Dumping error log"
 	g = codecs.open('ErrorFile.txt','rb', 'utf-8')
 	errordump = g.read()
-	errorpage = page.Page(site, settings.bot+'/errors')
-	errortext = "These are pages that the bot missed for whatever reason:\n"
+	errorpage = page.Page(site, "User:"+settings.bot+'/errors')
+	errortext = unicode("These are pages that the bot missed for whatever reason:\n", 'utf8')
 	errorpage.edit(newtext = errortext + errordump, summary="Reporting errors", minor=True)
 	g.close()
 
 	print "Dumping edit log"
 	l = codecs.open('LogFile.txt','rb', 'utf-8')
 	logdump = l.read()
-	logpage = page.Page(site, settings.bot+'/log')
-	logtext = "These are pages the bot edited and why:\n"
+	logpage = page.Page(site, "User:"+settings.bot+'/log')
+	logtext = unicode("These are pages the bot edited and why:\n", 'utf8')
 	logpage.edit(logtext + logdump , summary="Edit log", minor=True)
 	l.close()
+	
+	site.login(settings.adminbot, settings.adminbotpass)
+	logincheck(settings.adminbot)
+	print "Dumping deletion error log"
+	de = codecs.open('DelErrorFile.txt','rb', 'utf-8')
+	logdump = de.read()
+	logpage = page.Page(site, "User:"+settings.adminbot+'/errors')
+	logtext = unicode("These are pages deletion failed on:\n", 'utf8')
+	logpage.edit(logtext + logdump , summary="Error log", minor=True)
+	de.close()
+	
+	print "Dumping delete log"
+	dl = codecs.open('DelLogFile.txt','rb', 'utf-8')
+	logdump = dl.read()
+	logpage = page.Page(site, "User:"+settings.adminbot+'/log')
+	logtext = unicode("These are pages the bot deleted on the last run:\n", 'utf8')
+	logpage.edit(logtext + logdump , summary="Log", minor=True)
+	dl.close()
 	
 def blockcheck():
 	print "Starting block check"
@@ -275,11 +293,21 @@ def removePage(pagename, reason, other):
 	else:
 		reportError(userpage, "No change detected")
 
-def reportError(userpage, error):
-	g = codecs.open('ErrorFile.txt','ab', 'utf-8')
+def reportError(userpage, error, delete=False):
+	if delete:
+		g = codecs.open('DelErrorFile.txt','ab', 'utf-8')
+	else:
+		g = codecs.open('ErrorFile.txt','ab', 'utf-8')
 	g.write('\n# [['+userpage.title+']] ' + error)
 	print( "ERROR on: " + userpage.pageid)
 	g.close() 
 		
+def logincheck(username):
+	if not site.isLoggedIn(username):
+		e = open('CrashErrors.txt','w')
+		e.write("Not Logged in\n")
+		e.close()
+		quit()
+
 if __name__ == '__main__':
 	main()
