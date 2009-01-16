@@ -128,6 +128,7 @@ def errorlog():
 	logpage.edit(logtext + logdump , summary="Edit log", minor=True)
 	l.close()
 	
+	site.logout()
 	site.login(settings.adminbot, settings.adminbotpass)
 	logincheck(settings.adminbot)
 	print "Dumping deletion error log"
