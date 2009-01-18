@@ -75,7 +75,7 @@ def firstchecks():
 	skip = False
 	for pageid in data['query']['pages'].keys():
 		userpage = data['query']['pages'][pageid]
-		title = userpage['title'].encode('utf-8')
+		title = userpage['title']
 		if title in titlewhitelist:
 			continue
 		if userpage['ns'] != 2 and userpage['ns'] != 3: # Namespace check, only user [talk] should be in the cat
@@ -91,7 +91,7 @@ def firstchecks():
 			tp = page.Page(site, title, check=False)
 			up = tp.toggleTalk(check=False)
 			try:
-				tems = up.getTemplates
+				tems = up.getTemplates()
 				if "Template:Do not delete" in tems:
 					removePage(title, "{{tl|do not delete}} on userpage", "")
 					continue
@@ -114,17 +114,17 @@ def errorlog():
 	logincheck(settings.bot)
 	print "Dumping error log"
 	g = codecs.open('ErrorFile.txt','rb', 'utf-8')
-	errordump = g.read()
+	errordump = g.read().encode('utf8')
 	errorpage = page.Page(site, "User:"+settings.bot+'/errors')
-	errortext = unicode("These are pages that the bot missed for whatever reason:\n", 'utf8')
+	errortext = "These are pages that the bot missed for whatever reason:\n"
 	errorpage.edit(newtext = errortext + errordump, summary="Reporting errors", minor=True)
 	g.close()
 
 	print "Dumping edit log"
 	l = codecs.open('LogFile.txt','rb', 'utf-8')
-	logdump = l.read()
+	logdump = l.read().encode('utf8')
 	logpage = page.Page(site, "User:"+settings.bot+'/log')
-	logtext = unicode("These are pages the bot edited and why:\n", 'utf8')
+	logtext = "These are pages the bot edited and why:\n"
 	logpage.edit(logtext + logdump , summary="Edit log", minor=True)
 	l.close()
 	
@@ -133,17 +133,17 @@ def errorlog():
 	logincheck(settings.adminbot)
 	print "Dumping deletion error log"
 	de = codecs.open('DelErrorFile.txt','rb', 'utf-8')
-	logdump = de.read()
+	logdump = de.read().encode('utf8')
 	logpage = page.Page(site, "User:"+settings.adminbot+'/errors')
-	logtext = unicode("These are pages deletion failed on:\n", 'utf8')
+	logtext = "These are pages deletion failed on:\n"
 	logpage.edit(logtext + logdump , summary="Error log", minor=True)
 	de.close()
 	
 	print "Dumping delete log"
 	dl = codecs.open('DelLogFile.txt','rb', 'utf-8')
-	logdump = dl.read()
+	logdump = dl.read().encode('utf8')
 	logpage = page.Page(site, "User:"+settings.adminbot+'/log')
-	logtext = unicode("These are pages the bot deleted on the last run:\n", 'utf8')
+	logtext = "These are pages the bot deleted on the last run:\n"
 	logpage.edit(logtext + logdump , summary="Log", minor=True)
 	dl.close()
 	
@@ -185,7 +185,7 @@ def getblocks(userstring, users):
 	counter = 0
 	pagesToRemove = []
 	for user in users:
-		if blockeduserlist.count(user.decode('utf-8')) == 0:
+		if blockeduserlist.count(user) == 0:
 			counter+=1
 			pagesToRemove.append(userlist[user])
 	if total == counter:
