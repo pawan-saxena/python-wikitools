@@ -1,9 +1,11 @@
 ﻿# -*- coding: utf-8 -*-
 from wikitools import *
-import re, codecs, datetime, time, settings, os
+import re, codecs, datetime, time, settings, os, socket
 
 site = wiki.Wiki()
+global userlist, IPs
 userlist = {}
+IPs = {}
 print "Logging in"
 site.login(settings.bot, settings.botpass)
 l = codecs.open('LogFile.txt', 'wb', 'utf-8')
@@ -17,31 +19,55 @@ de.close()
 titlewhitelist = ["Category:Wikipedians who are indefinitely blocked for spamming"]
 
 def main():
-	logincheck(settings.bot) # Make sure we're logged in before doing anything else
-	print "Starting..."
-	params = {'action':'query',
-		'generator':'categorymembers',
-		'gcmtitle':'Category:Temporary Wikipedian userpages',
-		'prop':'templates|revisions',
-		'rvprop':'timestamp',
-		'tlnamespace':'10',
-		'tllimit':'5000',
-		'gcmlimit':'1000',
-		'indexpageids':'1',
-	}
-	req = api.APIRequest(site, params)
-	global data
-	data = req.query()
-	userlist = {}
-	print "Starting checks..."
-	userlist = firstchecks()	
-	blockcheck()
-	deletePages()
-	errorlog()
-	os.remove('LogFile.txt')
-	os.remove('ErrorFile.txt')
-	os.remove('DelErrorFile.txt')
-	os.remove('DelLogFile.txt')	
+	try:
+		logincheck(settings.bot) # Make sure we're logged in before doing anything else
+		print "Starting..."
+		params = {'action':'query',
+			'generator':'categorymembers',
+			'gcmtitle':'Category:Temporary Wikipedian userpages',
+			'prop':'templates|revisions',
+			'rvprop':'timestamp',
+			'tlnamespace':'10',
+			'tllimit':'5000',
+			'gcmlimit':'1000',
+			'indexpageids':'1',
+		}
+		req = api.APIRequest(site, params)
+		global data
+		data = req.query()
+		print "Starting checks..."
+		firstchecks()	
+		blockcheck()
+		handleIPs()
+		deletePages()
+		errorlog()
+		os.remove('LogFile.txt')
+		os.remove('ErrorFile.txt')
+		os.remove('DelErrorFile.txt')
+		os.remove('DelLogFile.txt')	
+	except:
+		import webbrowser, traceback
+		f = open("AAA_CATTEMP_ERROR.log", "wb")
+		traceback.print_exception(sys.exc_info()[0], sys.exc_info()[1], sys.exc_info()[2], None, f)
+		f.close()
+		webbrowser.open("AAA_CATTEMP_ERROR.log")
+
+def handleIPs():
+	if not IPs:
+		return
+	for user in IPs:
+		(userpage, content) = removePage(title, "IP page", "", save=False)
+		content += '\n\n[[Category:Indefinitely blocked IP addresses]]'
+		try:
+			userpage.edit(newtext=content, summary="Removing Temporary userpage category, adding indef blocked IPs category", minor=True, bot=True, basetime=userpage.lastedittime)
+			l = codecs.open('LogFile.txt', 'ab', 'utf-8')
+			l.write('\n# [[' + userpage.title + ']] - Indef blocked IP')
+			l.close()
+		except api.APIError, (code, errortext):
+			if code == 'protectedpage':
+				reportError(userpage, "Page protected")
+			else:
+				reportError(userpage, errortext)	
 
 def deletePages():
 	site.logout()
@@ -106,7 +132,11 @@ def firstchecks():
 					username = username.replace( "User:", "", 1)
 				if userpage['ns'] == 3:
 					username = username.replace( "User talk:", "", 1)
-			userlist[username] = title
+			try:
+				socket.inet_aton(username) # IP check
+				IPs[username] = title
+			except:
+				userlist[username] = title
 		skip = False
 	
 def errorlog():
@@ -179,8 +209,10 @@ def getblocks(userstring, users):
 				timestamp = entry['expiry']
 				date = timestampToDate(timestamp)
 				diff = date - date.today()
-				if diff.days < 300:
+				if diff.days < 300 or entry['user'] in IPs:
 					removePage(userlist[entry['user']], "not indef blocked", date)
+					if entry['user'] in IPs:
+						del IPs[entry['user']]
 	total = len(users) - len(blockeduserlist)
 	counter = 0
 	pagesToRemove = []
@@ -203,7 +235,7 @@ def timestampToDate(timestamp):
 	date = datetime.date(int(year), int(month), int(day))
 	return date
 	
-def removePage(pagename, reason, other):
+def removePage(pagename, reason, other, save=True):
 	userpage = page.Page(site, pagename)
 	del data['query']['pages'][userpage.pageid]
 	try:
@@ -291,6 +323,8 @@ def removePage(pagename, reason, other):
 		newtext = newtext.replace('{{vOAblock}}', '{{tl|VOAblock}}')
 	
 	if not(newtext == text):
+		if not save:
+			return (userpage, newtext)
 		try:
 			userpage.edit(newtext=newtext, summary="Removing Temporary userpage category", minor=True, bot=True, basetime=userpage.lastedittime)
 			l = codecs.open('LogFile.txt', 'ab', 'utf-8')
