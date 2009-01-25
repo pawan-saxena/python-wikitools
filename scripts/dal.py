@@ -61,8 +61,8 @@ def sendEmail(mail, subj):
 	msg = MIMEMultipart()
 	msg.set_charset('utf-8')
 	msg['From'] = fromaddr
-	msg['To'] = "***"
-	msg['Cc'] = "***"
+	msg['To'] = toaddr[0]
+	msg['Cc'] = toaddr[1]
 	msg['Subject'] = subj
 	msg.attach(MIMEText(mail.encode('utf-8'), 'plain', 'utf-8'))
 	server = smtplib.SMTP('smtp.gmail.com', 587)
@@ -113,7 +113,7 @@ def makeDAL(article, anivs, word, quote):
 def getQuote(QOTD):
 	p = page.Page(enquote, QOTD)
 	if not p.exists:
-		raise Exception("ERROR: Word of the day doesn't exist O_o")
+		raise Exception("ERROR: Quote of the day doesn't exist O_o")
 	text = p.getWikiText()
 	lines = text.splitlines()
 	text = lines[3]
