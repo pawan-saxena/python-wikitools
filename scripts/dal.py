@@ -32,7 +32,6 @@ def main():
 		year = tomorrow.year
 		day = tomorrow.day
 		month = tomorrow.strftime("%B")
-		print "Day is %s" % (day)
 		TFA = "Wikipedia:Today's featured article/%s %d, %d" % (month, day, year)
 		SA = "Wikipedia:Selected anniversaries/%s %d" % (month, day)
 		WOTD = "Wiktionary:Word of the day/%s %d" % (month, day)
