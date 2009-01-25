@@ -1,15 +1,20 @@
 # -*- coding: utf-8 -*-
 from wikitools import *
-import threading, urllib, gzip, projectlister, MySQLdb, sys, datetime, re, os, settings, hashlib
+import threading, urllib, gzip, projectlister, MySQLdb, sys, datetime, re, os, settings, hashlib, calendar
 from time import sleep
 
-articletypes = {'unassessed':'{{unassessed-Class}}', 'image':'{{image-Class}}', 'template':'{{template-Class}}', 'category':'{{category-Class}}', 'disambig':'{{disambig-Class}}', 'portal':'{{portal-Class}}', 'list':'{{list-Class}}', 'redirect':'{{redirect-Class}}', 'non-article':'{{NA-Class}}', 'blank':'{{NA-Class}}', 'stub':'{{stub-Class}}', 'start':'{{start-Class}}', 'C':'{{C-Class}}', 'B':'{{B-Class}}', 'GA':'{{GA-Class}}', 'A':'{{A-Class}}', 'FL':'{{FL-Class}}', 'FA':'{{FA-Class}}'} # This should cover most instances, some projects have some odd ones
+articletypes = {'unassessed':'{{unassessed-Class}}', 'image':'{{image-Class}}',
+	'template':'{{template-Class}}', 'category':'{{category-Class}}', 'disambig':'{{disambig-Class}}',
+	'portal':'{{portal-Class}}', 'list':'{{list-Class}}', 'redirect':'{{redirect-Class}}',
+	'non-article':'{{NA-Class}}', 'blank':'{{NA-Class}}', 'stub':'{{stub-Class}}', 'start':'{{start-Class}}',
+	'C':'{{C-Class}}', 'B':'{{B-Class}}', 'GA':'{{GA-Class}}', 'A':'{{A-Class}}',
+	'FL':'{{FL-Class}}', 'FA':'{{FA-Class}}'} # This should cover most instances, some projects have some odd ones
 
 site = wiki.Wiki()
 site.login(settings.bot, settings.botpass)
-
 queryreq = []
 pagelist = set()
+kill = threading.Event()
 
 def startup():
 	projectlist = projectlister.projects
@@ -37,47 +42,127 @@ def startup():
 		quit()
 		
 def main(projectlist):
-	db = MySQLdb.connect(host="localhost", user=settings.dbuser, passwd=settings.dbpass)
-	cursor = db.cursor()
-	cursor.execute("USE `stats`")
-	f = open("PopLogFile.txt", 'wb')
-	f.write("")
-	f.close()
-	day = (datetime.datetime.now()-datetime.timedelta(1)).day
-	if day == 1 or 1==1:
-		cursor.execute("TRUNCATE TABLE `popularity`")
-		threadqueue = []
-		for project in projectlist.keys():
-			abbrv = project
-			name = projectlist[project][0]
-			setupProject(name, abbrv)
-	query = 'SELECT DISTINCT hash FROM popularity'
-	cursor.execute(query)
-	res = cursor.fetchall()
-	global pagelist
-	for row in res:
-		pagelist.add(row[0])
-	db.close()
-	qh = QueryThread()
-	qh.start()
-	count = 0
-	while True:
-		if not os.listdir("C:\Python25\MediaWiki\statspages"):
-			logMsg("No files ready")
-			sleep(10)
+	try:
+		f = open("PopLogFile.txt", 'wb')
+		f.write("")
+		f.close()
+		db = MySQLdb.connect(host="localhost", user=settings.dbuser, passwd=settings.dbpass)
+		cursor = db.cursor()
+		cursor.execute("USE `stats`")
+		cursor.execute("TRUNCATE TABLE `popularity_copy`")
+		copyquery = "INSERT INTO popularity_copy select * from popularity"
+		cursor.execute(copyquery)
+		day = (datetime.datetime.now()-datetime.timedelta(6)).day
+		year = (datetime.datetime.now()-datetime.timedelta(6)).year
+		month = (datetime.datetime.now()-datetime.timedelta(6)).month
+		cal = calendar.monthcalendar(year+1, month)
+		week = []
+		for row in cal:
+			if day in row:
+				week = row
+		numfiles = 24 * (7 - week.count(0))
+		# # week=[]
+		# # cal=[[]]
+		# # day=1
+		# # year=2009
+		# # numfiles = 24*24
+		if cal.index(week) == 1 and cal[0].count(0) != 0:# or 1==1:
+			numfiles += 24 * (7 - cal[0].count(0))
+			day = 1
+			cursor.execute("TRUNCATE TABLE `popularity`")
+			threadqueue = []
+			for project in projectlist.keys():
+				abbrv = project
+				name = projectlist[project][0]
+				setupProject(name, abbrv)
 		else:
-			f = os.listdir("C:\\Python25\\MediaWiki\\statspages")[0]
-			os.rename("C:\\Python25\\MediaWiki\\statspages\\"+f, "C:\\Python25\\MediaWiki\\inprogress\\"+f)
-			processPage("C:\\Python25\\MediaWiki\\inprogress\\"+f)
-			count+=1
-			if count == 24:
-				break
-	sleep(10)
-	qh.kill()
-	while qh.isAlive():
-		logMsg("Waiting for querythread to stop: "+str(len(queryreq))+" queries remaining")
+			day = week[0]
+		query = 'SELECT DISTINCT hash FROM popularity'
+		cursor.execute(query)
+		res = cursor.fetchall()
+		global pagelist
+		for row in res:
+			pagelist.add(row[0])
+		db.close()
+		qh = QueryThread()
+		qh.start()
+		count = 0
+		while True:
+			if not os.listdir("Q:/stats/statspages"):
+				logMsg("No files ready")
+				sleep(10)
+			else:
+				f = os.listdir("Q:/stats/statspages")[0]
+				os.rename("Q:/stats/statspages/"+f, "Q:/stats/inprogress/"+f)
+				processPage("Q:/stats/inprogress/"+f)
+				count+=1
+				if count == numfiles:
+					break
+		global queryreq 
+		print len(queryreq)
 		sleep(10)
-			
+		kill.set()
+		while qh.isAlive():
+			logMsg("Waiting for querythread to stop: "+str(len(queryreq))+" queries remaining")
+			sleep(10)
+		if numfiles < 24*7: #there's prolly a better way to do this
+			for project in projectlist.keys():
+				print "Making table for "+projectlist[project][1]
+				query = "SELECT COUNT(*) FROM `popularity` WHERE `project` = %s"
+				bits = (project)
+				cursor.execute(query, bits)
+				pagecount = int(cursor.fetchone()[0])
+				limit = "1000"
+				if pagecount > 1000:
+					headerlimit = "the top 1000 pages"
+				else:
+					headerlimit = "all "+str(pagecount)+" pages"
+				numdays = calendar.monthrange(int(year), int(month))[1]
+				listpage = projectlist[project][1]
+				target = page.Page(site, listpage)
+				header = "This is a list of "+headerlimit+" ordered by number of views in "+calendar.month_name[int(month)]+" in the scope of the "+project+" Wikiproject.\n\n"
+				header += "The data comes from data published by [[User:Midom|Domas Mituzas]] from Wikipedia's [[Squid (software)|squid]] server logs. "
+				header += "Note that due to the use of a different program than http://stats.grok.se/ the numbers here may be differnt. On average the numbers here are 3-6% higher. For more information, "
+				header += "or for a copy of the full data for all pages, leave a message on [[User talk:Mr.Z-man|this talk page]].\n\n"
+				header += "==List==\n<!-- Changes made to this section will be overwritten on the next update. Do not change the name of this section. -->"
+				header += "\nPeriod: "+year+"-"+month+"-01 &mdash; "+year+"-"+month+"-"+str(numdays)+" (UTC)\n\n"
+				table = header + '{| class="wikitable sortable" style="text-align: right;"\n'
+				table+= '! Rank\n! Page\n! Views\n! Views (per day average)\n! Assessment\n'
+				print "Table started"
+				query = 'SELECT title, hits, assess FROM `popularity` WHERE `project` = %s ORDER BY hits DESC LIMIT %s'
+				bits = (project, limit)
+				cursor.execute(query, bits)
+				print "Query executed"
+				result = cursor.fetchall()
+				rank = 0
+				print "Beginning loop"
+				for record in result:
+					rank+=1
+					hits = locale.format("%.*f", (0,record[1]), True) # This formats the numbers with comma-thousand separators, its magic or something
+					avg = locale.format("%.*f", (0, record[1]/numdays ), True)
+					assess = record[2]
+					template = articletypes[assess]
+					table+= "|-\n"
+					table+= "| " + locale.format("%.*f", (0,rank), True) + "\n"
+					table+= "| style='text-align: left;' | [[:" + record[0] + "]]\n"
+					table+= "| " + hits + "\n"
+					table+= "| " + avg + "\n"
+					table+= "| " + template + "\n"
+					if rank/100 == rank/100.0:
+						print rank
+				print "Finishing table"
+				table += "|}"
+				print "Saving"
+				ff.write(table)
+				ff.close()
+				target.edit(newtext=table, summary="Popularity stats for "+project+" project")
+	except:
+		import webbrowser, traceback
+		f = open("AAA_POP2_ERROR.log", "wb")
+		traceback.print_exception(sys.exc_info()[0], sys.exc_info()[1], sys.exc_info()[2], None, f)
+		f.close()
+		webbrowser.open("AAA_POP2_ERROR.log")
+				
 
 def processPage(fileloc):	
 	lines = 0
@@ -87,9 +172,6 @@ def processPage(fileloc):
 	datapage = gzip.GzipFile('', 'rb', 9, file)
 	global queryreq
 	for line in datapage:
-		lines+=1
-		if lines%50000 == 0:
-			logMsg(fileloc+ " at "+str(lines)+" lines")
 		if not line or not line.startswith('en '):
 			if count > 0:
 				break
@@ -140,9 +222,8 @@ def setupProject(project, abbrv):
 	
 def logMsg(msg):
 	f = open("PopLogFile.txt", 'ab')
-	f.write(str(msg))
+	f.write(str(msg)+"\n")
 	f.close()
-	print msg
 
 class QueryThread(threading.Thread):
 	def __init__(self):
@@ -159,17 +240,15 @@ class QueryThread(threading.Thread):
 		while True:
 			if queryreq:
 				self.ready.append(queryreq.pop())
-				if len(self.ready) == 10 or self.kill:
+				if len(self.ready) == 25 or (kill.isSet() and len(queryreq) == 0):
 					cursor.execute("START TRANSACTION")
 					r = len(self.ready)
 					for x in range(0, r):
 						cursor.execute(query, self.ready.pop())
 					cursor.execute("COMMIT")
-			if self.kill and self.size == 0 and not self.ready and not queryreq:
+			if kill.isSet() and not self.ready and not queryreq:
 				break
-				
-	def kill(self):
-		self.kill = True
+
 	
 if __name__ == '__main__':
 	startup()

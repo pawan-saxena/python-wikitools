@@ -7,4 +7,9 @@ projects = {'dino': ['dinosaurs', 'Wikipedia:WikiProject Dinosaurs/Popular pages
 	'wpmi': ['Michigan', 'Wikipedia:WikiProject Michigan/Popular pages'],
 	'pal': ['Palaeontology', 'Wikipedia:WikiProject Palaeontology/Popular pages'],
 	'guns': ['Firearms', 'Wikipedia:WikiProject Firearms/Popular pages'],
+	'astro': ['Astronomy', 'Wikipedia:WikiProject Astronomy/Popular pages'],
+	'dnd': ['Dungeons & Dragons', 'Wikipedia:WikiProject Dungeons & Dragons/Article hits'],
+	'beat': ['The Beatles', 'Wikipedia:WikiProject The Beatles/Popular pages'],
+	'solar': ['Solar System', 'Wikipedia:WikiProject Solar System/Popular pages'],
+	'astobj': ['Astronomical Objects', 'Wikipedia:WikiProject Astronomical objects/Popular pages'],
 }

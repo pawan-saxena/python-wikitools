@@ -1,10 +1,23 @@
 ﻿# -*- coding: utf-8 -*-
-import urllib, datetime, re, httplib, os
+import urllib, datetime, re, httplib, os, calendar
 from time import sleep
 
 def main():
-	day = (datetime.datetime.now()-datetime.timedelta(1)).day
-	month = datetime.datetime.now().month
+	day = (datetime.datetime.now()-datetime.timedelta(6)).day
+	year = (datetime.datetime.now()-datetime.timedelta(6)).year
+	month = (datetime.datetime.now()-datetime.timedelta(6)).month
+	cal = calendar.monthcalendar(year+1, month)
+	week = []
+	for row in cal:
+		if day in row:
+			week = row
+	numfiles = 24 * (7 - week.count(0))
+	if cal.index(week) == 1 and cal[0].count(0) != 0:
+		numfiles += 24 * (7 - cal[0].count(0))
+		day = 1
+	else:
+		day = week[0]
+	files = 0
 	if month < 10:
 		month =  "0" + str(month)
 	else:
@@ -12,23 +25,42 @@ def main():
 	logMsg("Month is: " + month)
 	logMsg("Day is: " + str(day))
 	sleep(3)
-	year = str(datetime.datetime.now().year)
+	# # month = "01"
+	# # day = 1
+	# # year = 2009
+	# # numfiles = 24*24
+	# # files=0
+	
 	hour = 0
-	if day < 10:
-		sday = "0"+str(day)
-	else:
-		sday = str(day)
-	while True:
-		if hour < 10:
-			shour = "0"+str(hour)
-		else:
-			shour = str(hour)
-		datapage = year+month+sday+"-"+shour+"0000"
-		url = "http://dammit.lt/wikistats/pagecounts-"+datapage+".gz"
-		downloadPage(url)
-		hour+=1
-		if hour == 24:
-			break
+	try:
+		while True:
+			if day < 10:
+				sday = "0"+str(day)
+			else:
+				sday = str(day)
+			if hour < 10:
+				shour = "0"+str(hour)
+			else:
+				shour = str(hour)
+			datapage = str(year)+month+sday+"-"+shour+"0000"
+			url = "http://dammit.lt/wikistats/pagecounts-"+datapage+".gz"
+			downloadPage(url)
+			hour+=1
+			if hour == 24:
+				l = open("DownloadLog.txt", 'ab')
+				l.write("%s-%d downloaded\n" % (month, day))
+				l.close()
+				day+=1
+				hour=0
+			files+=1
+			if files == numfiles:
+				break
+	except:
+		import webbrowser, traceback
+		f = open("AAA_DOWNLOAD_ERROR.log", "wb")
+		traceback.print_exception(sys.exc_info()[0], sys.exc_info()[1], sys.exc_info()[2], None, f)
+		f.close()
+		webbrowser.open("AAA_DOWNLOAD_ERROR.log")
 
 def downloadPage(url):
 	logMsg("Downloading "+url)
@@ -48,18 +80,17 @@ def downloadPage(url):
 			return
 	conn.close()
 	filename = url.split('http://dammit.lt/wikistats/')[1]
-	fileloc = "C:/Python25/MediaWiki/downloading/"+filename
+	fileloc = "Q:/stats/downloading/"+filename
 	f = open(fileloc, 'wb')
 	f.close()
 	page = urllib.urlretrieve(url, fileloc)
-	os.rename("C:\\Python25\\MediaWiki\\downloading\\"+filename, "C:\\Python25\\MediaWiki\\statspages\\"+filename)
+	os.rename("Q:/stats/downloading/"+filename, "Q:/stats/statspages/"+filename)
 	
 	
 def logMsg(msg):
 	f = open("PopLogFile.txt", 'ab')
-	f.write(str(msg))
+	f.write(str(msg)+"\n")
 	f.close()
-	print msg
 	
 if __name__ == '__main__':
 	main()
