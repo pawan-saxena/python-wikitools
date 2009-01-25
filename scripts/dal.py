@@ -4,9 +4,9 @@ from email.MIMEMultipart import MIMEMultipart
 from email.MIMEText import MIMEText
 import settings, datetime, re, htmlentitydefs, urllib, codecs, smtplib
 
-TFAreg = re.compile(".*?(\'\'\'\[\[.*?)\|more\.\.\.\]\]\'\'\'\)", re.I|re.S)
-TFAtitle = re.compile("\(\'\'\'\[\[(.*?)\|more\.\.\.\]\]\'\'\'")
-anivreg = re.compile("\'\'\'\s?\[\[(.*?)\]\]\s?\'\'\'")
+TFAreg = re.compile(".*?('''\[\[.*?)\|more\.\.\.\]\]'''\)", re.I|re.S)
+TFAtitle = re.compile("\('''\[\[(.*?)\|more\.\.\.\]\]'''")
+anivreg = re.compile("'''\s?\[\[(.*?)\]\]\s?'''")
 anivyear = re.compile("\{\{\*mp\}\}\s?\[\[(\d*)\]\] &ndash;")
 anivpicture = re.compile("\([^\)]*?pictured\) ", re.I)
 quotename = re.compile("~ \[\[(.*?)\]\].*")
@@ -16,8 +16,8 @@ italic = re.compile("''(.*?)''", re.U)
 pipelinks = re.compile("\[\[[^\|\]]+?\|([^\]]+?)\]\]")
 links = re.compile("\[\[([^\]]+?)\]\]")
 comments = re.compile("<!--.*?-->")
-linebreaks = re.compile("\<\s*(br|p)\s*\/?\s*\>", re.I)
-htmltags = re.compile(r"\<\s*(span|div|p|b|i|small|s|tt|strike|u|font|sub|sup)(?: .*?)?\>(.*?)<\s*\/\1\>", re.I)
+linebreaks = re.compile("<\s*(br|p)\s*\/?\s*>", re.I)
+htmltags = re.compile(r"<\s*(span|div|p|b|i|small|s|tt|strike|u|font|sub|sup)(?: .*?)?>(.*?)<\s*\/\1\s*>", re.I)
 entities = re.compile("\&([^;]{3,6}?);")
 
 enwiki = wiki.Wiki()
@@ -32,6 +32,7 @@ def main():
 		year = tomorrow.year
 		day = tomorrow.day
 		month = tomorrow.strftime("%B")
+		print "Day is %s" % (day)
 		TFA = "Wikipedia:Today's featured article/%s %d, %d" % (month, day, year)
 		SA = "Wikipedia:Selected anniversaries/%s %d" % (month, day)
 		WOTD = "Wiktionary:Word of the day/%s %d" % (month, day)
