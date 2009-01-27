@@ -2,7 +2,7 @@
 from wikitools import *
 from email.MIMEMultipart import MIMEMultipart
 from email.MIMEText import MIMEText
-import settings, datetime, re, htmlentitydefs, urllib, codecs, smtplib
+import settings, datetime, re, htmlentitydefs, urllib, codecs, smtplib, sys
 
 TFAreg = re.compile(".*?('''\[\[.*?)\|more\.\.\.\]\]'''\)", re.I|re.S)
 TFAtitle = re.compile("\('''\[\[(.*?)\|more\.\.\.\]\]'''")
@@ -17,7 +17,7 @@ pipelinks = re.compile("\[\[[^\|\]]+?\|([^\]]+?)\]\]")
 links = re.compile("\[\[([^\]]+?)\]\]")
 comments = re.compile("<!--.*?-->")
 linebreaks = re.compile("<\s*(br|p)\s*\/?\s*>", re.I)
-htmltags = re.compile(r"<\s*(span|div|p|b|i|small|s|tt|strike|u|font|sub|sup)(?: .*?)?>(.*?)<\s*\/\1\s*>", re.I)
+htmltags = re.compile(r"<\s*(span|div|p|b|i|small|s|tt|strike|u|font|sub|sup|nowiki)(?: .*?)?>(.*?)<\s*\/\1\s*>", re.I)
 entities = re.compile("\&([^;]{3,6}?);")
 
 enwiki = wiki.Wiki()
@@ -117,6 +117,8 @@ def getQuote(QOTD):
 	text = p.getWikiText()
 	lines = text.splitlines()
 	text = lines[3]
+	if len(text) < 30:
+		text = lines[4]
 	text = text.split('| align=center |')[1]
 	name = quotename.search(text).group(1)
 	if '|' in name:
