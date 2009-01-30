@@ -4,7 +4,7 @@ from email.MIMEMultipart import MIMEMultipart
 from email.MIMEText import MIMEText
 import settings, datetime, re, htmlentitydefs, urllib, codecs, smtplib, sys
 
-TFAreg = re.compile(".*?('''\[\[.*?)\|more\.\.\.\]\]'''\)", re.I|re.S)
+TFAreg = re.compile(".*?\n([^\n]*'''\[\[.*?)\|more\.\.\.\]\]'''\)", re.I|re.S)
 TFAtitle = re.compile("\('''\[\[(.*?)\|more\.\.\.\]\]'''")
 anivreg = re.compile("'''\s?\[\[(.*?)\]\]\s?'''")
 anivyear = re.compile("\{\{\*mp\}\}\s?\[\[(\d*)\]\] &ndash;")
@@ -21,8 +21,6 @@ htmltags = re.compile(r"<\s*(span|div|p|b|i|small|s|tt|strike|u|font|sub|sup|now
 entities = re.compile("\&([^;]{3,6}?);")
 
 enwiki = wiki.Wiki()
-enwiki.login(settings.admin, settings.adminpass)
-
 enquote = wiki.Wiki("http://en.wikiquote.org/w/api.php")
 enwikt = wiki.Wiki("http://en.wiktionary.org/w/api.php")
 
@@ -176,7 +174,8 @@ def getTFA(TFA):
 	title = TFAtitle.search(text).group(1)
 	text = TFAreg.sub(r'\1', text)
 	text = text.rsplit("('''", 1)[0]
-	TFA = {title: killFormatting(text).strip()}
+	pt = page.Page(enwiki, title)
+	TFA = {pt.title: killFormatting(text).strip()}
 	return TFA
 	
 def killFormatting(text):
