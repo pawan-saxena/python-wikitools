@@ -1,13 +1,14 @@
 ﻿# -*- coding: utf-8 -*-
 from wikitools import *
-import re, codecs, datetime, time, settings, os, socket
+import re, codecs, datetime, time, settings, os, socket, sys
 
 site = wiki.Wiki()
 global userlist, IPs
 userlist = {}
 IPs = {}
 print "Logging in"
-site.login(settings.bot, settings.botpass)
+site.cookepath = "C:/Python25/MediaWiki/"
+site.login(settings.bot, settings.botpass, remember=True)
 l = codecs.open('LogFile.txt', 'wb', 'utf-8')
 l.close()
 g = codecs.open('ErrorFile.txt','wb', 'utf-8')
@@ -55,8 +56,8 @@ def main():
 def handleIPs():
 	if not IPs:
 		return
-	for user in IPs:
-		(userpage, content) = removePage(title, "IP page", "", save=False)
+	for IP in IPs:
+		(userpage, content) = removePage(IPs[IP], "IP page", "", save=False)
 		content += '\n\n[[Category:Indefinitely blocked IP addresses]]'
 		try:
 			userpage.edit(newtext=content, summary="Removing Temporary userpage category, adding indef blocked IPs category", minor=True, bot=True, basetime=userpage.lastedittime)
@@ -70,7 +71,6 @@ def handleIPs():
 				reportError(userpage, errortext)	
 
 def deletePages():
-	site.logout()
 	site.login(settings.adminbot, settings.adminbotpass)
 	logincheck(settings.adminbot)
 	print "Deleting old pages..."
@@ -94,7 +94,6 @@ def deletePages():
 				dl.close()
 			else:
 				reportError(p, "Deletion error: "+res['error']['code'], True)
-	site.logout()
 		
 def firstchecks():
 	p = re.compile("(User|User talk):(.*?)\/.*")
@@ -133,7 +132,7 @@ def firstchecks():
 				if userpage['ns'] == 3:
 					username = username.replace( "User talk:", "", 1)
 			try:
-				socket.inet_aton(username) # IP check
+				socket.inet_aton(username.replace(' ', '_')) # IP check
 				IPs[username] = title
 			except:
 				userlist[username] = title
@@ -158,7 +157,6 @@ def errorlog():
 	logpage.edit(logtext + logdump , summary="Edit log", minor=True)
 	l.close()
 	
-	site.logout()
 	site.login(settings.adminbot, settings.adminbotpass)
 	logincheck(settings.adminbot)
 	print "Dumping deletion error log"
