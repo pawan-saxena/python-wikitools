@@ -71,7 +71,7 @@ def handleIPs():
 				reportError(userpage, errortext)	
 
 def deletePages():
-	site.login(settings.adminbot, settings.adminbotpass)
+	site.login(settings.adminbot, settings.adminbotpass, remember=True)
 	logincheck(settings.adminbot)
 	print "Deleting old pages..."
 	log = []

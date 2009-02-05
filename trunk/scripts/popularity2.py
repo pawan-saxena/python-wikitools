@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 from wikitools import *
-import threading, urllib, gzip, projectlister, MySQLdb, sys, datetime, re, os, settings, hashlib, calendar
+import threading, urllib, gzip, projectlister, MySQLdb, sys, datetime, re, os, settings, hashlib, calendar, locale
 from time import sleep
 
 articletypes = {'unassessed':'{{unassessed-Class}}', 'image':'{{image-Class}}',
@@ -46,11 +46,11 @@ def main(projectlist):
 		f = open("PopLogFile.txt", 'wb')
 		f.write("")
 		f.close()
-		db = MySQLdb.connect(host="localhost", user=settings.dbuser, passwd=settings.dbpass)
+		db = MySQLdb.connect(host="localhost", user=settings.dbuser, passwd=settings.dbpass, use_unicode=True, charset='utf8')
 		cursor = db.cursor()
 		cursor.execute("USE `stats`")
 		cursor.execute("TRUNCATE TABLE `popularity_copy`")
-		copyquery = "INSERT INTO popularity_copy select * from popularity"
+		copyquery = "INSERT INTO popularity_copy SELECT * FROM popularity"
 		cursor.execute(copyquery)
 		day = (datetime.datetime.now()-datetime.timedelta(6)).day
 		year = (datetime.datetime.now()-datetime.timedelta(6)).year
@@ -61,16 +61,16 @@ def main(projectlist):
 			if day in row:
 				week = row
 		numfiles = 24 * (7 - week.count(0))
-		# # week=[]
-		# # cal=[[]]
-		# # day=1
-		# # year=2009
-		# # numfiles = 24*24
-		if cal.index(week) == 1 and cal[0].count(0) != 0:# or 1==1:
+		# week=[]  # Override settings
+		# week=[]  # Override settings
+		# cal=[[]]
+		# day=1
+		# year=2009
+		# numfiles = 24*31
+		if cal.index(week) == 1 and cal[0].count(0) != 0 or 1==1:
 			numfiles += 24 * (7 - cal[0].count(0))
 			day = 1
 			cursor.execute("TRUNCATE TABLE `popularity`")
-			threadqueue = []
 			for project in projectlist.keys():
 				abbrv = project
 				name = projectlist[project][0]
@@ -99,15 +99,21 @@ def main(projectlist):
 				if count == numfiles:
 					break
 		global queryreq 
-		print len(queryreq)
+		logMsg( len(queryreq))
 		sleep(10)
 		kill.set()
 		while qh.isAlive():
 			logMsg("Waiting for querythread to stop: "+str(len(queryreq))+" queries remaining")
 			sleep(10)
+		month = 1
+		year = 2009
+		if month < 10:
+			month =  "0" + str(month)
+		else:
+			month = str(month)
 		if numfiles < 24*7: #there's prolly a better way to do this
 			for project in projectlist.keys():
-				print "Making table for "+projectlist[project][1]
+				logMsg("Making table for "+projectlist[project][1])
 				query = "SELECT COUNT(*) FROM `popularity` WHERE `project` = %s"
 				bits = (project)
 				cursor.execute(query, bits)
@@ -120,22 +126,22 @@ def main(projectlist):
 				numdays = calendar.monthrange(int(year), int(month))[1]
 				listpage = projectlist[project][1]
 				target = page.Page(site, listpage)
-				header = "This is a list of "+headerlimit+" ordered by number of views in "+calendar.month_name[int(month)]+" in the scope of the "+project+" Wikiproject.\n\n"
+				header = "This is a list of "+headerlimit+" ordered by number of views in "+calendar.month_name[int(month)]+" in the scope of the "+projectlist[project][0]+" Wikiproject.\n\n"
 				header += "The data comes from data published by [[User:Midom|Domas Mituzas]] from Wikipedia's [[Squid (software)|squid]] server logs. "
-				header += "Note that due to the use of a different program than http://stats.grok.se/ the numbers here may be differnt. On average the numbers here are 3-6% higher. For more information, "
+				header += "Note that due to the use of a different program than http://stats.grok.se/ the numbers here may differ from that site. On average the numbers here are 3-6% higher. For more information, "
 				header += "or for a copy of the full data for all pages, leave a message on [[User talk:Mr.Z-man|this talk page]].\n\n"
 				header += "==List==\n<!-- Changes made to this section will be overwritten on the next update. Do not change the name of this section. -->"
-				header += "\nPeriod: "+year+"-"+month+"-01 &mdash; "+year+"-"+month+"-"+str(numdays)+" (UTC)\n\n"
+				header += "\nPeriod: "+str(year)+"-"+str(month)+"-01 &mdash; "+str(year)+"-"+str(month)+"-"+str(numdays)+" (UTC)\n\n"
 				table = header + '{| class="wikitable sortable" style="text-align: right;"\n'
 				table+= '! Rank\n! Page\n! Views\n! Views (per day average)\n! Assessment\n'
-				print "Table started"
+				logMsg( "Table started")
 				query = 'SELECT title, hits, assess FROM `popularity` WHERE `project` = %s ORDER BY hits DESC LIMIT %s'
-				bits = (project, limit)
+				bits = (project, int(limit))
 				cursor.execute(query, bits)
-				print "Query executed"
+				logMsg( "Query executed")
 				result = cursor.fetchall()
 				rank = 0
-				print "Beginning loop"
+				logMsg( "Beginning loop")
 				for record in result:
 					rank+=1
 					hits = locale.format("%.*f", (0,record[1]), True) # This formats the numbers with comma-thousand separators, its magic or something
@@ -149,13 +155,11 @@ def main(projectlist):
 					table+= "| " + avg + "\n"
 					table+= "| " + template + "\n"
 					if rank/100 == rank/100.0:
-						print rank
-				print "Finishing table"
+						logMsg( rank)
+				logMsg("Finishing table")
 				table += "|}"
-				print "Saving"
-				ff.write(table)
-				ff.close()
-				target.edit(newtext=table, summary="Popularity stats for "+project+" project")
+				logMsg( "Saving")
+				target.edit(newtext=table, summary="Popularity stats for "+projectlist[project][0]+" project")
 	except:
 		import webbrowser, traceback
 		f = open("AAA_POP2_ERROR.log", "wb")
@@ -192,10 +196,12 @@ def processPage(fileloc):
 
 def setupProject(project, abbrv):
 	logMsg("Setting up "+project)
+	hashlist = set()
 	db = MySQLdb.connect(host="localhost", user=settings.dbuser, passwd=settings.dbpass, use_unicode=True, charset='utf8')
 	cursor = db.cursor()
 	cursor.execute("USE `stats`")
-	for type in articletypes.keys():
+	types = ['FA', 'FL', 'A', 'GA', 'B', 'C', 'start', 'stub', 'list', 'image', 'portal', 'category', 'disambig', 'template', 'unassessed', 'blank', 'redirect', 'non-article']
+	for type in types:
 		if type == "unassessed":
 			cat = "Category:Unassessed "+project+" articles"
 		elif type == "non-article":
@@ -214,6 +220,9 @@ def setupProject(project, abbrv):
 			realtitle = title.toggleTalk(False, False)
 			pagee = realtitle.title
 			hashmd5 = hashlib.md5(realtitle.title.encode('utf-8').replace(' ', '_').lower()).hexdigest()
+			if hashmd5 in hashlist:
+				continue
+			hashlist.add(hashmd5)
 			query = 'INSERT INTO popularity (title, hash, assess, project) VALUES( %s, %s, %s, %s )'
 			bits = (pagee, hashmd5, type, abbrv)
 			cursor.execute(query, bits)	
@@ -248,9 +257,7 @@ class QueryThread(threading.Thread):
 					cursor.execute("COMMIT")
 			if kill.isSet() and not self.ready and not queryreq:
 				break
-
 	
 if __name__ == '__main__':
 	startup()
-
 	
