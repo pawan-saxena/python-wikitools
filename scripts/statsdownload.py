@@ -1,5 +1,5 @@
 ﻿# -*- coding: utf-8 -*-
-import urllib, datetime, re, httplib, os, calendar
+import urllib, datetime, re, httplib, os, calendar, sys
 from time import sleep
 
 def main():
@@ -25,12 +25,11 @@ def main():
 	logMsg("Month is: " + month)
 	logMsg("Day is: " + str(day))
 	sleep(3)
-	# # month = "01"
-	# # day = 1
-	# # year = 2009
-	# # numfiles = 24*24
-	# # files=0
-	
+	# month = "01" # Override settings
+	# day = 1
+	# year = 2009
+	# numfiles = 24*31
+	# files=0	
 	hour = 0
 	try:
 		while True:
@@ -68,14 +67,14 @@ def downloadPage(url):
 	testurl = url.split('http://dammit.lt')[1]
 	conn.request('HEAD', testurl)
 	r1 = conn.getresponse()
-	if r1.status == 404:
+	if r1.status == 404 or r1.status == 500:
 		url = re.sub("-(\d{2})0000", r"- \1 0001", url)
 		url = re.sub(" ", "", url)
 		testurl = url.split('http://dammit.lt')[1]
 		conn = httplib.HTTPConnection('dammit.lt')
 		conn.request('HEAD', testurl)
 		r1 = conn.getresponse()
-		if r1.status == 404:
+		if r1.status == 404 or r1.status == 500:
 			logMsg("Warning: "+url+" seems to be missing")
 			return
 	conn.close()
