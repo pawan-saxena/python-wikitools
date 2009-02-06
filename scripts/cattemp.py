@@ -132,8 +132,9 @@ def firstchecks():
 				if userpage['ns'] == 3:
 					username = username.replace( "User talk:", "", 1)
 			try:
-				socket.inet_aton(username.replace(' ', '_')) # IP check
-				IPs[username] = title
+				s = socket.inet_aton(username.replace(' ', '_')) # IP check
+				if socket.inet_ntoa(s) == self.name:
+					IPs[username] = title
 			except:
 				userlist[username] = title
 		skip = False
