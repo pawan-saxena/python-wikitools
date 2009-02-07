@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 from wikitools import *
-import threading, urllib, gzip, projectlister, MySQLdb, sys, datetime, re, os, settings, hashlib, calendar, locale
+import multiprocessing, urllib, gzip, projectlister, MySQLdb, sys, datetime, re, os, settings, hashlib, calendar, locale, traceback
 from time import sleep
 
 articletypes = {'unassessed':'{{unassessed-Class}}', 'image':'{{image-Class}}',
@@ -12,9 +12,8 @@ articletypes = {'unassessed':'{{unassessed-Class}}', 'image':'{{image-Class}}',
 
 site = wiki.Wiki()
 site.login(settings.bot, settings.botpass)
-queryreq = []
 pagelist = set()
-kill = threading.Event()
+kill = multiprocessing.Event()
 
 def startup():
 	projectlist = projectlister.projects
@@ -62,12 +61,11 @@ def main(projectlist):
 				week = row
 		numfiles = 24 * (7 - week.count(0))
 		# week=[]  # Override settings
-		# week=[]  # Override settings
 		# cal=[[]]
 		# day=1
 		# year=2009
-		# numfiles = 24*31
-		if cal.index(week) == 1 and cal[0].count(0) != 0 or 1==1:
+		# numfiles = 24
+		if cal.index(week) == 1 and cal[0].count(0) != 0:# or 1==1:
 			numfiles += 24 * (7 - cal[0].count(0))
 			day = 1
 			cursor.execute("TRUNCATE TABLE `popularity`")
@@ -84,7 +82,8 @@ def main(projectlist):
 		for row in res:
 			pagelist.add(row[0])
 		db.close()
-		qh = QueryThread()
+		queryreq = multiprocessing.Queue()
+		qh = multiprocessing.Process(target=QueryProcess, args=(queryreq,))
 		qh.start()
 		count = 0
 		while True:
@@ -94,16 +93,15 @@ def main(projectlist):
 			else:
 				f = os.listdir("Q:/stats/statspages")[0]
 				os.rename("Q:/stats/statspages/"+f, "Q:/stats/inprogress/"+f)
-				processPage("Q:/stats/inprogress/"+f)
+				processPage("Q:/stats/inprogress/"+f, queryreq)
 				count+=1
 				if count == numfiles:
 					break
-		global queryreq 
-		logMsg( len(queryreq))
+		logMsg(queryreq.qsize())
 		sleep(10)
 		kill.set()
 		while qh.isAlive():
-			logMsg("Waiting for querythread to stop: "+str(len(queryreq))+" queries remaining")
+			logMsg("Waiting for querythread to stop: "+str(queryreq.qsize())+" queries remaining")
 			sleep(10)
 		month = 1
 		year = 2009
@@ -168,13 +166,12 @@ def main(projectlist):
 		webbrowser.open("AAA_POP2_ERROR.log")
 				
 
-def processPage(fileloc):	
+def processPage(fileloc, queryreq):	
 	lines = 0
 	count = 0
 	logMsg("Processing "+fileloc)
 	file = open(fileloc, 'rb')
 	datapage = gzip.GzipFile('', 'rb', 9, file)
-	global queryreq
 	for line in datapage:
 		if not line or not line.startswith('en '):
 			if count > 0:
@@ -186,7 +183,7 @@ def processPage(fileloc):
 		if key in pagelist:
 			count+=1
 			qbits = (bits[2], key)
-			queryreq.append(qbits)
+			queryreq.put(qbits, False)
 			if count%5000 == 0:
 				logMsg(fileloc+ " at "+str(count)+" hits")
 	file.close()
@@ -230,33 +227,31 @@ def setupProject(project, abbrv):
 	db.close()
 	
 def logMsg(msg):
+	print str(msg)
 	f = open("PopLogFile.txt", 'ab')
 	f.write(str(msg)+"\n")
 	f.close()
 
-class QueryThread(threading.Thread):
-	def __init__(self):
-		threading.Thread.__init__(self)
-		self.kill = False
-		self.ready = []
-
-	def run(self):
-		db = MySQLdb.connect(host="localhost", user=settings.dbuser, passwd=settings.dbpass)
-		cursor = db.cursor()
-		cursor.execute("USE stats")
-		query = 'UPDATE popularity SET hits=hits+%s WHERE hash=%s'
-		global queryreq
-		while True:
-			if queryreq:
-				self.ready.append(queryreq.pop())
-				if len(self.ready) == 25 or (kill.isSet() and len(queryreq) == 0):
-					cursor.execute("START TRANSACTION")
-					r = len(self.ready)
-					for x in range(0, r):
-						cursor.execute(query, self.ready.pop())
-					cursor.execute("COMMIT")
-			if kill.isSet() and not self.ready and not queryreq:
-				break
+def QueryProcess(queryreq):
+	ready = []
+	db = MySQLdb.connect(host="localhost", user=settings.dbuser, passwd=settings.dbpass)
+	cursor = db.cursor()
+	cursor.execute("USE stats")
+	query = 'UPDATE popularity SET hits=hits+%s WHERE hash=%s'
+	while True:
+		try:
+			ready.append(queryreq.get())
+			if len(ready) == 25 or (kill.is_set() and queryreq.empty()):
+				cursor.execute("START TRANSACTION")
+				r = len(ready)
+				for x in range(0, r):
+					cursor.execute(query, ready.pop())
+				cursor.execute("COMMIT")
+		except:
+			traceback.print_exc()
+			logMsg("queryreq empty")
+		if kill.is_set() and not ready and queryreq.empty():
+			break
 	
 if __name__ == '__main__':
 	startup()
