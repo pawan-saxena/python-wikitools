@@ -155,7 +155,7 @@ def errorlog():
 	logdump = l.read().encode('utf8')
 	logpage = page.Page(site, "User:"+settings.bot+'/log')
 	logtext = "These are pages the bot edited and why:\n"
-	logpage.edit(logtext + logdump , summary="Edit log", minor=True)
+	logpage.edit(text=logtext + logdump , summary="Edit log", minor=True)
 	l.close()
 	
 	site.login(settings.adminbot, settings.adminbotpass)
@@ -165,7 +165,7 @@ def errorlog():
 	logdump = de.read().encode('utf8')
 	logpage = page.Page(site, "User:"+settings.adminbot+'/errors')
 	logtext = "These are pages deletion failed on:\n"
-	logpage.edit(logtext + logdump , summary="Error log", minor=True)
+	logpage.edit(text=logtext + logdump , summary="Error log", minor=True)
 	de.close()
 	
 	print "Dumping delete log"
@@ -173,7 +173,7 @@ def errorlog():
 	logdump = dl.read().encode('utf8')
 	logpage = page.Page(site, "User:"+settings.adminbot+'/log')
 	logtext = "These are pages the bot deleted on the last run:\n"
-	logpage.edit(logtext + logdump , summary="Log", minor=True)
+	logpage.edit(text=logtext + logdump , summary="Log", minor=True)
 	dl.close()
 	
 def blockcheck():
