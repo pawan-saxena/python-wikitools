@@ -1,19 +1,22 @@
 # -*- coding: utf-8 -*-
 from wikitools import *
-import multiprocessing, urllib, gzip, projectlister, MySQLdb, sys, datetime, re, os, settings, hashlib, calendar, locale, traceback
-from time import sleep
+import urllib, gzip, MySQLdb
+import projectlister, settings
+import sys, os, locale, traceback
+import datetime, time, calendar
+import re, hashlib, math
 
 articletypes = {'unassessed':'{{unassessed-Class}}', 'image':'{{image-Class}}',
 	'template':'{{template-Class}}', 'category':'{{category-Class}}', 'disambig':'{{disambig-Class}}',
-	'portal':'{{portal-Class}}', 'list':'{{list-Class}}', 'redirect':'{{redirect-Class}}',
+	'portal':'{{portal-Class}}', 'list':'{{list-Class}}',
 	'non-article':'{{NA-Class}}', 'blank':'{{NA-Class}}', 'stub':'{{stub-Class}}', 'start':'{{start-Class}}',
 	'C':'{{C-Class}}', 'B':'{{B-Class}}', 'GA':'{{GA-Class}}', 'A':'{{A-Class}}',
 	'FL':'{{FL-Class}}', 'FA':'{{FA-Class}}'} # This should cover most instances, some projects have some odd ones
 
 site = wiki.Wiki()
 site.login(settings.bot, settings.botpass)
-pagelist = set()
-kill = multiprocessing.Event()
+
+hashlist = set()
 
 def startup():
 	projectlist = projectlister.projects
@@ -49,7 +52,6 @@ def main(projectlist):
 		cursor = db.cursor()
 		cursor.execute("USE `stats`")
 		cursor.execute("TRUNCATE TABLE `popularity_copy`")
-		copyquery = "INSERT INTO popularity_copy SELECT * FROM popularity"
 		cursor.execute(copyquery)
 		day = (datetime.datetime.now()-datetime.timedelta(6)).day
 		year = (datetime.datetime.now()-datetime.timedelta(6)).year
@@ -64,91 +66,95 @@ def main(projectlist):
 		# cal=[[]]
 		# day=1
 		# year=2009
-		# numfiles = 24
-		if cal.index(week) == 1 and cal[0].count(0) != 0:# or 1==1:
-			numfiles += 24 * (7 - cal[0].count(0))
+		# numfiles = 28*24
+		if (cal.index(week) == 1 and cal[0].count(0) != 0) or (cal[0].count(0) == 0 and cal.index(week) == 0):# or 1==1:
+			if (cal.index(week) == 1 and cal[0].count(0) != 0):
+				numfiles += 24 * (7 - cal[0].count(0))
 			day = 1
 			cursor.execute("TRUNCATE TABLE `popularity`")
+			cursor.execute("TRUNCATE TABLE `redirect_map`")
 			for project in projectlist.keys():
 				abbrv = project
 				name = projectlist[project][0]
 				setupProject(name, abbrv)
+			addRedirects()
 		else:
 			day = week[0]
+		print numfiles
+		pages = {}
+		redirects = {}
 		query = 'SELECT DISTINCT hash FROM popularity'
 		cursor.execute(query)
 		res = cursor.fetchall()
-		global pagelist
 		for row in res:
-			pagelist.add(row[0])
+			pages[row[0]] = 0
+		query = 'SELECT DISTINCT rd_hash, target_hash FROM redirect_map'
+		cursor.execute(query)
+		res = cursor.fetchall()
+		for row in res:
+			redirects[row[0]] = row[1]
+		del res
 		db.close()
-		queryreq = multiprocessing.Queue()
-		qh = multiprocessing.Process(target=QueryProcess, args=(queryreq,))
-		qh.start()
 		count = 0
 		while True:
 			if not os.listdir("Q:/stats/statspages"):
 				logMsg("No files ready")
-				sleep(10)
+				time.sleep(10)
 			else:
 				f = os.listdir("Q:/stats/statspages")[0]
 				os.rename("Q:/stats/statspages/"+f, "Q:/stats/inprogress/"+f)
-				processPage("Q:/stats/inprogress/"+f, queryreq)
+				pages = processPage("Q:/stats/inprogress/"+f, pages, redirects)
 				count+=1
 				if count == numfiles:
 					break
-		logMsg(queryreq.qsize())
-		sleep(10)
-		kill.set()
-		while qh.isAlive():
-			logMsg("Waiting for querythread to stop: "+str(queryreq.qsize())+" queries remaining")
-			sleep(10)
-		month = 1
+		logMsg("Adding results to table")
+		doQueries(pages)
+		month = 2
 		year = 2009
 		if month < 10:
 			month =  "0" + str(month)
 		else:
 			month = str(month)
-		if numfiles < 24*7: #there's prolly a better way to do this
+		if 1==1 or numfiles < 24*7: #there's prolly a better way to do this
+			numdays = calendar.monthrange(int(year), int(month))[1]
 			for project in projectlist.keys():
 				logMsg("Making table for "+projectlist[project][1])
-				query = "SELECT COUNT(*) FROM `popularity` WHERE `project` = %s"
-				bits = (project)
-				cursor.execute(query, bits)
+				query = "SELECT COUNT(*) FROM popularity WHERE project_assess LIKE \"%'{0}'%\"".format(project)
+				cursor.execute(query)
 				pagecount = int(cursor.fetchone()[0])
 				limit = "1000"
 				if pagecount > 1000:
 					headerlimit = "the top 1000 pages"
 				else:
 					headerlimit = "all "+str(pagecount)+" pages"
-				numdays = calendar.monthrange(int(year), int(month))[1]
 				listpage = projectlist[project][1]
-				target = page.Page(site, listpage)
-				header = "This is a list of "+headerlimit+" ordered by number of views in "+calendar.month_name[int(month)]+" in the scope of the "+projectlist[project][0]+" Wikiproject.\n\n"
+				target = page.Page(site, listpage)				
+				header = "This is a list of "+headerlimit+" ordered by number of views in the scope of the "+projectlist[project][0]+" Wikiproject.\n\n"
 				header += "The data comes from data published by [[User:Midom|Domas Mituzas]] from Wikipedia's [[Squid (software)|squid]] server logs. "
-				header += "Note that due to the use of a different program than http://stats.grok.se/ the numbers here may differ from that site. On average the numbers here are 3-6% higher. For more information, "
+				header += "Note that due to the use of a different program than http://stats.grok.se/ the numbers here may differ from that site. For more information, "
 				header += "or for a copy of the full data for all pages, leave a message on [[User talk:Mr.Z-man|this talk page]].\n\n"
+				header += "'''Note:''' This data aggregates the views for all redirects to each page.\n\n"
 				header += "==List==\n<!-- Changes made to this section will be overwritten on the next update. Do not change the name of this section. -->"
 				header += "\nPeriod: "+str(year)+"-"+str(month)+"-01 &mdash; "+str(year)+"-"+str(month)+"-"+str(numdays)+" (UTC)\n\n"
 				table = header + '{| class="wikitable sortable" style="text-align: right;"\n'
 				table+= '! Rank\n! Page\n! Views\n! Views (per day average)\n! Assessment\n'
-				logMsg( "Table started")
-				query = 'SELECT title, hits, assess FROM `popularity` WHERE `project` = %s ORDER BY hits DESC LIMIT %s'
-				bits = (project, int(limit))
-				cursor.execute(query, bits)
-				logMsg( "Query executed")
+				logMsg("Table started")
+				query = "SELECT title, hits, project_assess FROM `popularity` WHERE project_assess LIKE \"%'{0}'%\" ORDER BY hits DESC LIMIT {1}".format(project, limit)
+				cursor.execute(query)
+				logMsg("Query executed")
 				result = cursor.fetchall()
 				rank = 0
-				logMsg( "Beginning loop")
+				logMsg("Beginning loop")
 				for record in result:
 					rank+=1
 					hits = locale.format("%.*f", (0,record[1]), True) # This formats the numbers with comma-thousand separators, its magic or something
-					avg = locale.format("%.*f", (0, record[1]/numdays ), True)
-					assess = record[2]
+					avg = locale.format("%.*f", (0, record[1]/numdays ), True)					
+					exec 'project_assess = {'+record[2]+'}'					
+					assess = project_assess[project]
 					template = articletypes[assess]
 					table+= "|-\n"
 					table+= "| " + locale.format("%.*f", (0,rank), True) + "\n"
-					table+= "| style='text-align: left;' | [[:" + record[0] + "]]\n"
+					table+= "| style='text-align: left;' | [[:" + record[0].replace('_', ' ') + "]]\n"
 					table+= "| " + hits + "\n"
 					table+= "| " + avg + "\n"
 					table+= "| " + template + "\n"
@@ -166,9 +172,11 @@ def main(projectlist):
 		webbrowser.open("AAA_POP2_ERROR.log")
 				
 
-def processPage(fileloc, queryreq):	
+def processPage(fileloc, pages, redirects):	
 	lines = 0
 	count = 0
+	rds = set(redirects.keys())
+	pagelist = set(pages.keys())
 	logMsg("Processing "+fileloc)
 	file = open(fileloc, 'rb')
 	datapage = gzip.GzipFile('', 'rb', 9, file)
@@ -179,25 +187,32 @@ def processPage(fileloc, queryreq):
 			else:
 				continue
 		bits = line.split(' ')
-		key = hashlib.md5(urllib.unquote(bits[1]).replace(' ', '_').lower()).hexdigest()
+		key = hashlib.md5(urllib.unquote(bits[1]).replace(' ', '_')).hexdigest()
 		if key in pagelist:
 			count+=1
-			qbits = (bits[2], key)
-			queryreq.put(qbits, False)
+			pages[key] += int(bits[2])
+			if count%5000 == 0:
+				logMsg(fileloc+ " at "+str(count)+" hits")
+		elif key in rds:
+			count+=1
+			pages[redirects[key]] += int(bits[2])
 			if count%5000 == 0:
 				logMsg(fileloc+ " at "+str(count)+" hits")
 	file.close()
 	datapage.close()
 	os.remove(fileloc)
 	logMsg(fileloc+ " finished")
+	return pages
 
 def setupProject(project, abbrv):
 	logMsg("Setting up "+project)
-	hashlist = set()
 	db = MySQLdb.connect(host="localhost", user=settings.dbuser, passwd=settings.dbpass, use_unicode=True, charset='utf8')
 	cursor = db.cursor()
 	cursor.execute("USE `stats`")
-	types = ['FA', 'FL', 'A', 'GA', 'B', 'C', 'start', 'stub', 'list', 'image', 'portal', 'category', 'disambig', 'template', 'unassessed', 'blank', 'redirect', 'non-article']
+	projecthashes = set()
+	types = ['FA', 'FL', 'A', 'GA', 'B', 'C', 'start', 'stub', 'list', 'image', 'portal', 'category', 'disambig', 'template', 'unassessed', 'blank', 'non-article']
+	insertquery = 'INSERT INTO popularity (title, hash, project_assess) VALUES( %s, %s, %s )'
+	updatequery = 'UPDATE popularity SET project_assess=CONCAT(project_assess,",",%s) WHERE hash=%s'
 	for type in types:
 		if type == "unassessed":
 			cat = "Category:Unassessed "+project+" articles"
@@ -215,44 +230,58 @@ def setupProject(project, abbrv):
 			if not title.isTalk():
 				continue
 			realtitle = title.toggleTalk(False, False)
-			pagee = realtitle.title
-			hashmd5 = hashlib.md5(realtitle.title.encode('utf-8').replace(' ', '_').lower()).hexdigest()
-			if hashmd5 in hashlist:
+			pagee = realtitle.title.replace(' ', '_')
+			hashmd5 = hashlib.md5(realtitle.title.encode('utf-8').replace(' ', '_')).hexdigest()
+			if hashmd5 in projecthashes:
 				continue
-			hashlist.add(hashmd5)
-			query = 'INSERT INTO popularity (title, hash, assess, project) VALUES( %s, %s, %s, %s )'
-			bits = (pagee, hashmd5, type, abbrv)
-			cursor.execute(query, bits)	
+			project_assess = "'%s':'%s'" % (abbrv, type)
+			if hashmd5 in hashlist:
+				bits = (project_assess, hashmd5)
+				cursor.execute(updatequery, bits)
+			else:
+				hashlist.add(hashmd5)
+				projecthashes.add(hashmd5)			
+				bits = (pagee, hashmd5, project_assess)
+				cursor.execute(insertquery, bits)	
 		cursor.execute("COMMIT")
+	del projecthashes
 	db.close()
 	
+def addRedirects():
+	logMsg("Adding redirects")
+	db = MySQLdb.connect(host="localhost", user=settings.dbuser, passwd=settings.dbpass, use_unicode=True, charset='utf8')
+	cursor = db.cursor()
+	cursor.execute("USE `stats`")
+	query = """INSERT INTO redirect_map (rd_hash, target_hash)
+SELECT DISTINCT(MD5(page.page_title)), popularity.hash
+FROM popularity
+INNER JOIN (redirect, page)
+ON (popularity.title=redirect.rd_title AND redirect.rd_from=page.page_id)
+WHERE rd_namespace=0"""
+	cursor.execute("START TRANSACTION")
+	cursor.execute(query)
+	cursor.execute("COMMIT")
+	db.close()	
+		
 def logMsg(msg):
 	print str(msg)
 	f = open("PopLogFile.txt", 'ab')
 	f.write(str(msg)+"\n")
 	f.close()
 
-def QueryProcess(queryreq):
-	ready = []
+def doQueries(pages):
+	query = 'UPDATE popularity SET hits=hits+%s WHERE hash=%s'
 	db = MySQLdb.connect(host="localhost", user=settings.dbuser, passwd=settings.dbpass)
+	pagelist = [hash for hash in pages.keys() if pages[hash] != 0]
+	pagelist.sort()
 	cursor = db.cursor()
 	cursor.execute("USE stats")
-	query = 'UPDATE popularity SET hits=hits+%s WHERE hash=%s'
-	while True:
-		try:
-			ready.append(queryreq.get())
-			if len(ready) == 25 or (kill.is_set() and queryreq.empty()):
-				cursor.execute("START TRANSACTION")
-				r = len(ready)
-				for x in range(0, r):
-					cursor.execute(query, ready.pop())
-				cursor.execute("COMMIT")
-		except:
-			traceback.print_exc()
-			logMsg("queryreq empty")
-		if kill.is_set() and not ready and queryreq.empty():
-			break
-	
+	cursor.execute("SET autocommit=0")
+	cursor.execute("START TRANSACTION")
+	for entry in pagelist:
+		cursor.execute(query, (pages[entry], entry))
+	cursor.execute("COMMIT")
+	db.close()	
+		
 if __name__ == '__main__':
 	startup()
-	
