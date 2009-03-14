@@ -1,14 +1,15 @@
+#!/usr/bin/python
 # -*- coding: utf-8 -*-
 from wikitools import *
-from email.MIMEMultipart import MIMEMultipart
+from email.MIMENonMultipart import MIMENonMultipart
 from email.MIMEText import MIMEText
 import settings, datetime, re, htmlentitydefs, urllib, codecs, smtplib, sys
 
 TFAreg = re.compile(".*?\n([^\n]*'''\[\[.*?)\|more\.\.\.\]\]'''\)", re.I|re.S)
 TFAtitle = re.compile("\('''\[\[(.*?)\|more\.\.\.\]\]'''")
-anivreg = re.compile("'''\s?\[\[(.*?)\]\]\s?'''")
-anivyear = re.compile("\{\{\*mp\}\}\s?\[\[(\d*)\]\] &ndash;")
-anivpicture = re.compile("\([^\)]*?pictured\) ", re.I)
+anivreg = re.compile("'''\s?\"?\[\[(.*?)\]\]\"?\s?'''")
+anivyear = re.compile("\{\{\*mp\}\}\s?\[\[([0-9]*(?: AD| CE| BC| BCE)?)\]\] &ndash;")
+anivpicture = re.compile("\([^\)]*?pictured\)", re.I)
 quotename = re.compile("~ \[\[(.*?)\]\].*")
 
 boldtext = re.compile("'''(.*?)'''")
@@ -21,12 +22,24 @@ htmltags = re.compile(r"<\s*(span|div|p|b|i|small|s|tt|strike|u|font|sub|sup|now
 entities = re.compile("\&([^;]{3,6}?);")
 
 enwiki = wiki.Wiki()
+enwiki.setMaxlag(70)
 enquote = wiki.Wiki("http://en.wikiquote.org/w/api.php")
 enwikt = wiki.Wiki("http://en.wiktionary.org/w/api.php")
 
+def expandtemplates(text, site):
+	params = {'action':'expandtemplates',
+		'title':'Main Page',
+		'text':text
+	}
+	if site == enwikt:
+		params['title'] = 'Wiktionary:Main Page'
+	req = api.APIRequest(site, params)
+	res = req.query()
+	return res['expandtemplates']['*']
+
 def main():
 	try:
-		tomorrow = datetime.date.today() + datetime.timedelta(days=1)
+		tomorrow = datetime.date.today()
 		year = tomorrow.year
 		day = tomorrow.day
 		month = tomorrow.strftime("%B")
@@ -47,35 +60,36 @@ def main():
 		subject = "%s %d: %s" % (month, day, title)
 		sendEmail(mail, subject)
 	except:
-		import webbrowser, traceback
-		f = open("AAA_DAL_ERROR.log", "wb")
-		traceback.print_exception(sys.exc_info()[0], sys.exc_info()[1], sys.exc_info()[2], None, f)
-		f.close()
-		webbrowser.open("AAA_DAL_ERROR.log")
+		import traceback
+		traceback.print_exc()
 
 def sendEmail(mail, subj):
-	fromaddr = "***"
-	toaddr = ["***", "***"]
-	msg = MIMEMultipart()
-	msg.set_charset('utf-8')
+	fromaddr = "mrzmanwiki@gmail.com"
+	toaddr = ["daily-article-l@lists.wikimedia.org", "mrzmanwikimail@gmail.com"]
+	#toaddr = ["mrzmanwikimail@gmail.com"]
+	msg = MIMENonMultipart('text', 'plain')
+	msg['Content-Transfer-Encoding'] = '8bit'
+	#msg['charset'] = 'utf-8'
+	#msg.set_charset('utf-8')
+	#msg['Content-Transfer-Encoding'] = '7bit'
+	msg.set_payload(mail.encode('utf8'), 'utf-8')
 	msg['From'] = fromaddr
 	msg['To'] = toaddr[0]
-	msg['Cc'] = toaddr[1]
+	msg['Bcc'] = toaddr[1]
 	msg['Subject'] = subj
-	msg.attach(MIMEText(mail.encode('utf-8'), 'plain', 'utf-8'))
 	server = smtplib.SMTP('smtp.gmail.com', 587)
 	server.ehlo()
 	server.starttls()
 	server.ehlo()
 	server.login(settings.email, settings.emailpass)
 	body = msg.as_string()
-	server.sendmail(fromaddr, toaddr, body)
+	server.sendmail(fromaddr, toaddr, body, '8bitmime')
 	server.quit()	
 	
 def makeDAL(article, anivs, word, quote):
 	mail = unicode('', 'utf8')
 	TFAtitle = article.keys()[0]
-	TFAtext = article[TFAtitle]
+	TFAtext = breaklines(article[TFAtitle])
 	linktext = urllib.quote(TFAtitle.replace(' ', '_'))
 	mail += TFAtext
 	mail += '\n\n'
@@ -88,7 +102,7 @@ def makeDAL(article, anivs, word, quote):
 	for aniv in years:
 		mail += '\n'
 		mail += unicode(aniv) + ':\n\n'
-		mail += anivs[aniv]['text'] + '\n'
+		mail += breaklines(anivs[aniv]['text']) + '\n'
 		linktext = urllib.quote(anivs[aniv]['title'].replace(' ', '_'))
 		mail += '<http://en.wikipedia.org/wiki/%s>\n' % (linktext)
 	mail += '\n'
@@ -96,17 +110,42 @@ def makeDAL(article, anivs, word, quote):
 	mail += "Wiktionary's word of the day:\n\n"
 	wotd = word.keys()[0]
 	mail += "%s (%s):\n" % (wotd, word[wotd]['type'])
-	mail += word[wotd]['definition'] + '\n'
+	mail += breaklines(word[wotd]['definition']) + '\n'
 	linktext = urllib.quote(wotd.replace(' ', '_'))
 	mail += '<http://en.wiktionary.org/wiki/%s>\n\n' % (linktext)
 	mail += '___________________________\n'
 	mail += 'Wikiquote quote of the day:\n\n'
 	name = quote.keys()[0]
-	mail += quote[name]
-	mail += '   --'+name.decode('utf-8')+'\n'
+	mail += breaklines(quote[name])
+	mail += '\n   --'+name.decode('utf-8')+'\n'
 	linktext = urllib.quote(name.replace(' ', '_'))
 	mail += '<http://en.wikiquote.org/wiki/%s>\n\n\n\n' % (linktext)
 	return mail
+	
+def breaklines(text):
+	ret = []
+	while text:
+		try:
+			line = ''
+			for i in range(0,72):
+				if text[i] == '\n':
+					line = text[0:i]
+					if line:
+						text = text.split(line)[1]
+						ret.append(line)
+					break
+			if not line:
+				for x in range(1,72):
+					index = 72-x
+					if text[index] == ' ':
+						line = text[0:index+1]
+						text = text.split(line)[1]
+						ret.append(line)
+						break
+		except IndexError:
+			ret.append(text)
+			break
+	return '\n'.join(ret)		
 	
 def getQuote(QOTD):
 	p = page.Page(enquote, QOTD)
@@ -122,7 +161,7 @@ def getQuote(QOTD):
 	if '|' in name:
 		name = name.split('|')[0]
 	text = quotename.sub('', text)
-	text = killFormatting(text)
+	text = killFormatting(expandtemplates(text, enquote))
 	return {name:text.strip()}
 	
 def getWOTD(WOTD):
@@ -133,7 +172,7 @@ def getWOTD(WOTD):
 	bits = text.split('|')
 	word = bits[1]
 	type = bits[2]
-	definition = killFormatting(bits[3])
+	definition = killFormatting(expandtemplates(bits[3], enwikt))
 	if len(definition.splitlines()) != 1:
 		totaldef = ''
 		lines = definition.splitlines()
@@ -159,9 +198,9 @@ def getanivs(SA):
 		title = anivreg.search(line).group(1)
 		if '|' in title:
 			title = title.split('|')[0]
-		year = int(anivyear.search(line).group(1))
+		year = anivyear.search(line).group(1)
 		text = anivyear.sub('', line)
-		text = killFormatting(text)
+		text = killFormatting(expandtemplates(text, enwiki))
 		text = anivpicture.sub('', text)
 		anivs[year] = {'title':title, 'text':text.strip()}	
 	return anivs
@@ -179,7 +218,8 @@ def getTFA(TFA):
 	return TFA
 	
 def killFormatting(text):
-	text = text.decode('utf8')
+	if not isinstance(text, unicode):
+		text = text.decode('utf8')
 	# Start with the easy stuff:
 	text = boldtext.sub(r'\1', text)
 	text = italic.sub(r'\1', text)
