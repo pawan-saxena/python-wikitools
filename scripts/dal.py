@@ -90,7 +90,7 @@ def makeDAL(article, anivs, word, quote):
 	mail = unicode('', 'utf8')
 	TFAtitle = article.keys()[0]
 	TFAtext = breaklines(article[TFAtitle])
-	linktext = urllib.quote(TFAtitle.replace(' ', '_'))
+	linktext = preparelink(TFAtitle)
 	mail += TFAtext
 	mail += '\n\n'
 	mail += 'Read the rest of this article:\n'
@@ -103,7 +103,7 @@ def makeDAL(article, anivs, word, quote):
 		mail += '\n'
 		mail += unicode(aniv) + ':\n\n'
 		mail += breaklines(anivs[aniv]['text']) + '\n'
-		linktext = urllib.quote(anivs[aniv]['title'].replace(' ', '_'))
+		linktext = preparelink(anivs[aniv]['title'])
 		mail += '<http://en.wikipedia.org/wiki/%s>\n' % (linktext)
 	mail += '\n'
 	mail += '_____________________________\n'
@@ -111,16 +111,21 @@ def makeDAL(article, anivs, word, quote):
 	wotd = word.keys()[0]
 	mail += "%s (%s):\n" % (wotd, word[wotd]['type'])
 	mail += breaklines(word[wotd]['definition']) + '\n'
-	linktext = urllib.quote(wotd.replace(' ', '_'))
+	linktext = preparelink(wotd)
 	mail += '<http://en.wiktionary.org/wiki/%s>\n\n' % (linktext)
 	mail += '___________________________\n'
 	mail += 'Wikiquote quote of the day:\n\n'
 	name = quote.keys()[0]
 	mail += breaklines(quote[name])
 	mail += '\n   --'+name.decode('utf-8')+'\n'
-	linktext = urllib.quote(name.replace(' ', '_'))
+	linktext = preparelink(name)
 	mail += '<http://en.wikiquote.org/wiki/%s>\n\n\n\n' % (linktext)
 	return mail
+
+def preparelink(text):
+	text = killFormatting(text)
+	text = text.replace(' ', '_')
+	return urllib.quote(text)
 	
 def breaklines(text):
 	ret = []
