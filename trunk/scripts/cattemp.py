@@ -1,4 +1,5 @@
-﻿# -*- coding: utf-8 -*-
+﻿#!/usr/bin/python
+# -*- coding: utf-8 -*-
 from wikitools import *
 import re, codecs, datetime, time, settings, os, socket, sys
 
@@ -7,8 +8,7 @@ global userlist, IPs
 userlist = {}
 IPs = {}
 print "Logging in"
-site.cookepath = "C:/Python25/MediaWiki/"
-site.login(settings.bot, settings.botpass, remember=True)
+site.login(settings.bot, settings.botpass)
 l = codecs.open('LogFile.txt', 'wb', 'utf-8')
 l.close()
 g = codecs.open('ErrorFile.txt','wb', 'utf-8')
@@ -31,7 +31,6 @@ def main():
 			'tlnamespace':'10',
 			'tllimit':'5000',
 			'gcmlimit':'1000',
-			'indexpageids':'1',
 		}
 		req = api.APIRequest(site, params)
 		global data
@@ -47,11 +46,8 @@ def main():
 		os.remove('DelErrorFile.txt')
 		os.remove('DelLogFile.txt')	
 	except:
-		import webbrowser, traceback
-		f = open("AAA_CATTEMP_ERROR.log", "wb")
-		traceback.print_exception(sys.exc_info()[0], sys.exc_info()[1], sys.exc_info()[2], None, f)
-		f.close()
-		webbrowser.open("AAA_CATTEMP_ERROR.log")
+		import traceback
+		traceback.print_exc()
 
 def handleIPs():
 	if not IPs:
