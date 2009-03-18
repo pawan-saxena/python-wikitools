@@ -8,7 +8,7 @@ import settings, datetime, re, htmlentitydefs, urllib, codecs, smtplib, sys
 TFAreg = re.compile(".*?\n([^\n]*'''\[\[.*?)\|more\.\.\.\]\]'''\)", re.I|re.S)
 TFAtitle = re.compile("\('''\[\[(.*?)\|more\.\.\.\]\]'''")
 anivreg = re.compile("'''\s?\"?\[\[(.*?)\]\]\"?\s?'''")
-anivyear = re.compile("\{\{\*mp\}\}\s?\[\[([0-9]*(?: AD| CE| BC| BCE)?)\]\] &ndash;")
+anivyear = re.compile("\{\{\*mp\}\}\s?\[\[(?P<year>[0-9]*)(?P<suf> AD| CE| BC| BCE)?\]\] &ndash;")
 anivpicture = re.compile("\([^\)]*?pictured\)", re.I)
 quotename = re.compile("~ \[\[(.*?)\]\].*")
 
@@ -101,7 +101,12 @@ def makeDAL(article, anivs, word, quote):
 	years.sort()
 	for aniv in years:
 		mail += '\n'
-		mail += unicode(aniv) + ':\n\n'
+		y = ''
+		if aniv < 0:
+			y = str(aniv * -1) + ' BC'
+		else:
+			y = str(aniv)
+		mail += unicode(y) + ':\n\n'
 		mail += breaklines(anivs[aniv]['text']) + '\n'
 		linktext = preparelink(anivs[aniv]['title'])
 		mail += '<http://en.wikipedia.org/wiki/%s>\n' % (linktext)
@@ -203,7 +208,11 @@ def getanivs(SA):
 		title = anivreg.search(line).group(1)
 		if '|' in title:
 			title = title.split('|')[0]
-		year = anivyear.search(line).group(1)
+		res = anivyear.search(line)
+		year = int(res.group('year'))
+		mod = str(res.group('suf'))
+		if 'bc' in mod.lower():
+			year = year * -1
 		text = anivyear.sub('', line)
 		text = killFormatting(expandtemplates(text, enwiki))
 		text = anivpicture.sub('', text)
