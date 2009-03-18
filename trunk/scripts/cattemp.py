@@ -18,6 +18,29 @@ dl.close()
 de = codecs.open('DelErrorFile.txt','wb', 'utf-8')
 de.close()
 titlewhitelist = ["Category:Wikipedians who are indefinitely blocked for spamming"]
+spamcats = ['Category:User talk pages with Uw-spam1 notices',
+'Category:User talk pages with Uw-spam2 notices',
+'Category:User talk pages with Uw-spam3 notices',
+'Category:User talk pages with Uw-spam4 notices',
+'Category:User talk pages with Uw-spam4im notices',
+'Category:User talk pages with Uw-advert1 notices',
+'Category:User talk pages with Uw-advert2 notices',
+'Category:User talk pages with Uw-advert3 notices',
+'Category:User talk pages with Uw-advert4 notices',
+'Category:User talk pages with Uw-advert4im notices',
+'Category:User talk pages with Uw-coi notices',
+'Category:User talk pages with Uw-affiliate notices',
+'Category:User talk pages with Spam-warn notices',
+'Category:Wikipedians who are indefinitely blocked for link-spamming',
+'Category:Wikipedians who have temporarily been blocked for link-spamming',
+'Category:Wikipedians who have temporarily been blocked for advertising',
+'Category:Wikipedians who are indefinitely blocked for advertising',
+'Category:Wikipedians who are indefinitely blocked for promotional user names',
+'Category:Now unused spammer talk page categories',
+'Category:Wikipedians who are indefinitely blocked with uw-soablock notices',
+'Category:Wikipedians who are indefinitely blocked for spamming',
+'Category:Wikipedians who have temporarily been blocked for spamming',
+]
 
 def main():
 	try:
@@ -26,11 +49,12 @@ def main():
 		params = {'action':'query',
 			'generator':'categorymembers',
 			'gcmtitle':'Category:Temporary Wikipedian userpages',
-			'prop':'templates|revisions',
+			'prop':'templates|revisions|categories',
 			'rvprop':'timestamp',
 			'tlnamespace':'10',
 			'tllimit':'5000',
-			'gcmlimit':'1000',
+			'cllimit':'5000'
+			'gcmlimit':'500',
 		}
 		req = api.APIRequest(site, params)
 		global data
@@ -102,10 +126,16 @@ def firstchecks():
 		if userpage['ns'] != 2 and userpage['ns'] != 3: # Namespace check, only user [talk] should be in the cat
 			removePage(title, "wrong namespace", "")
 			skip = True
-		if not skip and data['query']['pages'][pageid].has_key('templates'):
+		if not skip and 'templates' in data['query']['pages'][pageid]:
 			for tem in data['query']['pages'][pageid]['templates']:
 				if tem['title'] == "Template:Do not delete":
 					removePage(title, "{{tl|do not delete}}", "")
+					skip = True
+					break
+		if not skip and 'categories' in data['query']['pages'][pageid]:
+			for cat in data['query']['pages'][pageid]['categories']:
+				if cat['title'] in spamcats:
+					removePage(title, "spam category", "")
 					skip = True
 					break
 		if not skip and userpage['ns'] == 3:
