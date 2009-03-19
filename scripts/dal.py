@@ -130,7 +130,7 @@ def makeDAL(article, anivs, word, quote):
 def preparelink(text):
 	text = killFormatting(text)
 	text = text.replace(' ', '_')
-	return urllib.quote(text)
+	return urllib.quote(text.encode('utf8'))
 	
 def breaklines(text):
 	ret = []
