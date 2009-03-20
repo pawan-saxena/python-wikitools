@@ -1,12 +1,16 @@
 ﻿#!/usr/bin/python
 # -*- coding: utf-8 -*-
 from wikitools import *
-import re, codecs, datetime, time, settings, os, socket, sys
+import re
+import codecs
+import datetime
+import settings
+import os
+import MySQLdb
 
 site = wiki.Wiki()
-global userlist, IPs
-userlist = {}
 IPs = {}
+removed = set()
 print "Logging in"
 site.login(settings.bot, settings.botpass)
 l = codecs.open('LogFile.txt', 'wb', 'utf-8')
@@ -18,57 +22,45 @@ dl.close()
 de = codecs.open('DelErrorFile.txt','wb', 'utf-8')
 de.close()
 titlewhitelist = ["Category:Wikipedians who are indefinitely blocked for spamming"]
-spamcats = ['Category:User talk pages with Uw-spam1 notices',
-'Category:User talk pages with Uw-spam2 notices',
-'Category:User talk pages with Uw-spam3 notices',
-'Category:User talk pages with Uw-spam4 notices',
-'Category:User talk pages with Uw-spam4im notices',
-'Category:User talk pages with Uw-advert1 notices',
-'Category:User talk pages with Uw-advert2 notices',
-'Category:User talk pages with Uw-advert3 notices',
-'Category:User talk pages with Uw-advert4 notices',
-'Category:User talk pages with Uw-advert4im notices',
-'Category:User talk pages with Uw-coi notices',
-'Category:User talk pages with Uw-affiliate notices',
-'Category:User talk pages with Spam-warn notices',
-'Category:Wikipedians who are indefinitely blocked for link-spamming',
-'Category:Wikipedians who have temporarily been blocked for link-spamming',
-'Category:Wikipedians who have temporarily been blocked for advertising',
-'Category:Wikipedians who are indefinitely blocked for advertising',
-'Category:Wikipedians who are indefinitely blocked for promotional user names',
-'Category:Now unused spammer talk page categories',
-'Category:Wikipedians who are indefinitely blocked with uw-soablock notices',
-'Category:Wikipedians who are indefinitely blocked for spamming',
-'Category:Wikipedians who have temporarily been blocked for spamming',
+spamcats = ['User_talk_pages_with_Uw-spam1_notices',
+'User_talk_pages_with_Uw-spam2_notices',
+'User_talk_pages_with_Uw-spam3_notices',
+'User_talk_pages_with_Uw-spam4_notices',
+'User_talk_pages_with_Uw-spam4im_notices',
+'User_talk_pages_with_Uw-advert1_notices',
+'User_talk_pages_with_Uw-advert2_notices',
+'User_talk_pages_with_Uw-advert3_notices',
+'User_talk_pages_with_Uw-advert4_notices',
+'User_talk_pages_with_Uw-advert4im_notices',
+'User_talk_pages_with_Uw-coi_notices',
+'User_talk_pages_with_Uw-affiliate_notices',
+'User_talk_pages_with_Spam-warn_notices',
+'Wikipedians_who_are_indefinitely_blocked_for_link-spamming',
+'Wikipedians_who_have_temporarily_been_blocked_for_link-spamming',
+'Wikipedians_who_have_temporarily_been_blocked_for_advertising',
+'Wikipedians_who_are_indefinitely_blocked_for_advertising',
+'Wikipedians_who_are_indefinitely_blocked_for_promotional_user_names',
+'Now_unused_spammer_talk_page_categories',
+'Wikipedians_who_are_indefinitely_blocked_with_uw-soablock_notices',
+'Wikipedians_who_are_indefinitely_blocked_for_spamming',
+'Wikipedians_who_have_temporarily_been_blocked_for_spamming',
 ]
+
+db = MySQLdb.connect(db='enwiki_p', host="sql-s1", read_default_file="/home/alexz/.my.cnf")
+cursor = db.cursor()
 
 def main():
 	try:
-		logincheck(settings.bot) # Make sure we're logged in before doing anything else
+		logincheck(settings.bot)
 		print "Starting..."
-		params = {'action':'query',
-			'generator':'categorymembers',
-			'gcmtitle':'Category:Temporary Wikipedian userpages',
-			'prop':'templates|revisions|categories',
-			'rvprop':'timestamp',
-			'tlnamespace':'10',
-			'tllimit':'5000',
-			'cllimit':'5000'
-			'gcmlimit':'500',
-		}
-		req = api.APIRequest(site, params)
-		global data
-		data = req.query()
-		print "Starting checks..."
-		firstchecks()	
-		blockcheck()
+		queries()
 		handleIPs()
 		deletePages()
 		errorlog()
 		os.remove('LogFile.txt')
 		os.remove('ErrorFile.txt')
 		os.remove('DelErrorFile.txt')
-		os.remove('DelLogFile.txt')	
+		os.remove('DelLogFile.txt')			
 	except:
 		import traceback
 		traceback.print_exc()
@@ -76,95 +68,129 @@ def main():
 def handleIPs():
 	if not IPs:
 		return
+	query = "SELECT ipb_expiry FROM ipblocks WHERE ipb_address=%s AND ipb_auto=0 AND ipb_user=0"
 	for IP in IPs:
-		(userpage, content) = removePage(IPs[IP], "IP page", "", save=False)
-		content += '\n\n[[Category:Indefinitely blocked IP addresses]]'
-		try:
-			userpage.edit(newtext=content, summary="Removing Temporary userpage category, adding indef blocked IPs category", minor=True, bot=True, basetime=userpage.lastedittime)
-			l = codecs.open('LogFile.txt', 'ab', 'utf-8')
-			l.write('\n# [[' + userpage.title + ']] - Indef blocked IP')
-			l.close()
-		except api.APIError, (code, errortext):
-			if code == 'protectedpage':
-				reportError(userpage, "Page protected")
-			else:
-				reportError(userpage, errortext)	
+		cursor.execute(query, IP)
+		time = cursor.fetchone()[0]
+		if time != 'infinity':
+			removePage(IPs[IP], "IP page")
+		else:
+			(userpage, content) = removePage(IPs[IP], "IP page", "", save=False)
+			content += '\n\n[[Category:Indefinitely blocked IP addresses]]'
+			try:
+				userpage.edit(newtext=content, summary="Removing Temporary userpage category, adding indef blocked IPs category", minor=True, bot=True, basetime=userpage.lastedittime)
+				l = codecs.open('LogFile.txt', 'ab', 'utf-8')
+				l.write('\n# [[' + userpage.title + ']] - Indef blocked IP')
+				l.close()
+			except api.APIError, (code, errortext):
+				if code == 'protectedpage':
+					reportError(userpage, "Page protected")
+				else:
+					reportError(userpage, errortext)	
 
 def deletePages():
-	site.login(settings.adminbot, settings.adminbotpass, remember=True)
+	site.login(settings.adminbot, settings.adminbotpass)
 	logincheck(settings.adminbot)
 	print "Deleting old pages..."
+	global removed
 	log = []
-	for pageid in data['query']['pages'].keys():
-		if data['query']['pages'][pageid]['title'] in titlewhitelist:
+	ts = datetime.datetime.utcnow() - datetime.timedelta(days=30)
+	ts = long(ts.strftime('%Y%m%d%H%M%S'))
+	query = """SELECT page_namespace,page_title,page_id FROM page
+		JOIN revision ON rev_page=page_id 
+		JOIN categorylinks ON cl_from=page_id 
+		WHERE cl_to="Temporary_Wikipedian_userpages" 
+		GROUP BY rev_timestamp HAVING MAX(CAST(rev_timestamp AS UNSIGNED)) < %s """
+	cursor.execute(query, ts)
+	result = set(cursor.fetchall())
+	for res in result:
+		userpage = page.Page(site, title=res[1], check=False, followRedir=False, pageid=int(res[2]))
+		userpage.setNamespace(res[0])
+		if userpage.title in removed:
 			continue
-		ts = data['query']['pages'][pageid]['revisions'][0]['timestamp']
-		date = timestampToDate(ts)
-		diff = date.today() - date
-		if diff.days > 30:
-			p = page.Page(site, title=data['query']['pages'][pageid]['title'], check=False, pageid=pageid)
-			try:
-				print("Deleting "+ p.title)
-			except:
-				print("Deleting" + p.pageid)
-			res = p.delete(reason="Old [[CAT:TEMP|temporary userpage]]")
-			if not p.exists:
-				dl = codecs.open('DelLogFile.txt', 'ab', 'utf-8')
-				dl.write('\n# [[' + p.title + ']]')
-				dl.close()
-			else:
-				reportError(p, "Deletion error: "+res['error']['code'], True)
+		userpage.setPageInfo()
+		try:
+			print("Deleting "+ userpage.title)
+		except:
+			print("Deleting" + userpage.pageid)
+		try:
+			userpage.delete(reason="Old [[CAT:TEMP|temporary userpage]]")
+			dl = codecs.open('DelLogFile.txt', 'ab', 'utf-8')
+			dl.write('\n# [[' + p.title + ']]')
+			dl.close()
+		except:
+			reportError(p, "Deletion error: "+res['error']['code'], True)
 		
-def firstchecks():
-	p = re.compile("(User|User talk):(.*?)\/.*")
-	skip = False
-	for pageid in data['query']['pages'].keys():
-		userpage = data['query']['pages'][pageid]
-		title = userpage['title']
-		if title in titlewhitelist:
-			continue
-		if userpage['ns'] != 2 and userpage['ns'] != 3: # Namespace check, only user [talk] should be in the cat
-			removePage(title, "wrong namespace", "")
-			skip = True
-		if not skip and 'templates' in data['query']['pages'][pageid]:
-			for tem in data['query']['pages'][pageid]['templates']:
-				if tem['title'] == "Template:Do not delete":
-					removePage(title, "{{tl|do not delete}}", "")
-					skip = True
-					break
-		if not skip and 'categories' in data['query']['pages'][pageid]:
-			for cat in data['query']['pages'][pageid]['categories']:
-				if cat['title'] in spamcats:
-					removePage(title, "spam category", "")
-					skip = True
-					break
-		if not skip and userpage['ns'] == 3:
-			tp = page.Page(site, title, check=False)
-			up = tp.toggleTalk(check=False)
-			try:
-				tems = up.getTemplates()
-				if "Template:Do not delete" in tems:
-					removePage(title, "{{tl|do not delete}} on userpage", "")
-					continue
-			except page.NoPage: # userpage doesn't exist
-				pass
-		if not skip:
-			if title.find('/') != -1:
-				username = p.sub(r'\2', title)
-			else:
-				username = title
-				if userpage['ns'] == 2:
-					username = username.replace( "User:", "", 1)
-				if userpage['ns'] == 3:
-					username = username.replace( "User talk:", "", 1)
-			try:
-				s = socket.inet_aton(username.replace(' ', '_')) # IP check
-				if socket.inet_ntoa(s) == self.name:
-					IPs[username] = title
-			except:
-				userlist[username] = title
-		skip = False
+def queries():
+	print "Doing namespace check"
+	query = """SELECT page_namespace,page_title,page_id FROM page 
+		JOIN categorylinks ON cl_from=page_id 
+		WHERE page_namespace<2 AND page_namespace>3 AND cl_to='Temporary_Wikipedian_userpages'"""
+	doQuery(query, "wrong namespace")
 	
+	print "Removing IP addresses"
+	query = """SELECT page_namespace,page_title,page_id FROM page 
+		JOIN categorylinks ON cl_from=page_id 
+		WHERE cl_to="Temporary_Wikipedian_userpages" 
+		AND page_title RLIKE "^(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$" """
+	cursor.execute(query)
+	while True:
+		res = cursor.fetchone()
+		if not res:
+			 break
+		userpage = page.Page(site, title=res[1], check=False, followRedir=False, pageid=int(res[2]))
+		userpage.setNamespace(res[0])
+		IPs[res[1]] = userpage.title
+		removed.add(int(res[2]))
+	
+	print "Checking for {{Do not delete}}"
+	query = """SELECT page_namespace,page_title,page_id FROM page 
+		JOIN categorylinks ON page_id=cl_from 
+		JOIN templatelinks ON page_id=tl_from 
+		WHERE cl_to="Temporary_Wikipedian_userpages" AND tl_title="Do_not_delete" AND tl_namespace=10"""
+	doQuery(query, "{{tl|do not delete}}")	
+	query = """SELECT page1.page_namespace,page1.page_title,page1.page_id FROM page AS page1 
+		JOIN categorylinks ON cl_from=page1.page_id 
+		JOIN page AS page2 ON page1.page_title=page2.page_title 
+		JOIN templatelinks ON tl_from=page2.page_id 
+		WHERE page2.page_namespace=2 AND tl_namespace=10 AND tl_title="Do_not_delete" AND page1.page_namespace=3 AND cl_to="Temporary_Wikipedian_userpages" """
+	doQuery(query, "{{tl|do not delete}} on userpage")
+	
+	print "Doing block checks"
+	year1 = datetime.datetime.now().year
+	years = '|'.join([str(year1),str(year1+1),str(year1+2),str(year1+3)])
+	query = """SELECT page_namespace,page_title,page_id FROM page 
+		JOIN categorylinks ON page_id=cl_from 
+		JOIN user ON REPLACE(SUBSTRING_INDEX(page_title,'/',1),'_',' ')=user_name 
+		JOIN ipblocks ON user_id=ipb_user 
+		WHERE cl_to="Temporary_Wikipedian_userpages" AND ipb_expiry != 'infinity' AND ipb_expiry RLIKE "("""+years+""").*" """
+	doQuery(query, "not indef blocked")
+	
+	query = """SELECT page_namespace,page_title,page_id FROM page 
+		JOIN categorylinks ON page_id=cl_from 
+		JOIN user ON user_name=REPLACE(SUBSTRING_INDEX(page_title,'/',1),'_',' ') 
+		WHERE cl_to="Temporary_Wikipedian_userpages" 
+		AND NOT EXISTS (SELECT ipb_id FROM ipblocks WHERE ipb_user=user_id)"""
+	doQuery(query, "not blocked")
+	
+	print "Doing spam cat check"
+	catlist = '"'+'","'.join(spamcats)+'"'
+	query = """SELECT page_namespace,page_title,page_id FROM page
+		JOIN categorylinks ON cl_from=page_id 
+		WHERE cl_to="Temporary_Wikipedian_userpages" 
+		AND page_id IN 
+			(SELECT cl_from FROM categorylinks 
+				WHERE cl_to IN ("""+catlist+"""))"""
+	doQuery(query, "page in spam category")
+
+def doQuery(query, reason):
+	cursor.execute(query)
+	while True:
+		res = cursor.fetchone()
+		if not res:
+			 break
+		removePage(res, reason)
+		
 def errorlog():
 	site.login(settings.bot, settings.botpass)
 	logincheck(settings.bot)
@@ -202,57 +228,7 @@ def errorlog():
 	logpage.edit(text=logtext + logdump , summary="Log", minor=True)
 	dl.close()
 	
-def blockcheck():
-	print "Starting block check"
-	usercounter = 0
-	userstring = ''
-	users = []
-	for user in userlist.keys():
-		userstring += user+'|'
-		users.append(user)
-		usercounter+=1
-		if usercounter == 350:
-			getblocks(userstring, users)
-			usercounter = 0
-			userstring = ''
-			users = []
-	getblocks(userstring, users)
-			
-def getblocks(userstring, users):
-	print "Getting blocks for " + str(len(users)) + " users"
-	blockeduserlist = []
-	userstring = re.sub('(.*)\|$', r'\1', userstring)
-	predata = {'action': 'query',
-		'list': 'blocks', 
-		'bkusers': userstring, 
-		'bklimit':'5000' } 
-	req = api.APIRequest(site, predata)
-	data = req.query()
-	for entry in data['query']['blocks']:
-		blockeduserlist.append(entry['user'])
-		if not entry['expiry'] == "infinity":
-				timestamp = entry['expiry']
-				date = timestampToDate(timestamp)
-				diff = date - date.today()
-				if diff.days < 300 or entry['user'] in IPs:
-					removePage(userlist[entry['user']], "not indef blocked", date)
-					if entry['user'] in IPs:
-						del IPs[entry['user']]
-	total = len(users) - len(blockeduserlist)
-	counter = 0
-	pagesToRemove = []
-	for user in users:
-		if blockeduserlist.count(user) == 0:
-			counter+=1
-			pagesToRemove.append(userlist[user])
-	if total == counter:
-		for page in pagesToRemove:
-			removePage(page, "not blocked", "")
-	else:
-		print "Block check error"
-		for page in pagesToRemove:
-			reportError(page, "Block check error")
-			
+	
 def timestampToDate(timestamp):
 	year = re.search("\d\d\d\d", timestamp).group(0)
 	month = re.search("\d\d\d\d-(\d\d)-(\d\d)", timestamp).group(1)
@@ -260,9 +236,15 @@ def timestampToDate(timestamp):
 	date = datetime.date(int(year), int(month), int(day))
 	return date
 	
-def removePage(pagename, reason, other, save=True):
-	userpage = page.Page(site, pagename)
-	del data['query']['pages'][userpage.pageid]
+def removePage(res, reason, other=False, save=True):
+	global removed
+	if int(res[2]) in removed:
+		return
+	userpage = page.Page(site, title=res[1], check=False, followRedir=False, pageid=int(res[2]))
+	userpage.setNamespace(res[0])
+	removed.add(int(res[2]))
+	if page.title in titlewhitelist:
+		return
 	try:
 		print(userpage.title + " - " + reason)
 	except:
@@ -271,82 +253,44 @@ def removePage(pagename, reason, other, save=True):
 		print(other)
 	text = userpage.getWikiText()
 	newtext = re.sub(r'\[\[Category:Temporary Wikipedian userpages.*?\]\]', '', text)
+	# TODO: these can be cut way down with regexes, but I was feeling lazy
 	newtext = newtext.replace('{{legalthreatblock}}', '{{tl|Legalthreatblock}}')
 	newtext = newtext.replace('{{Legalthreatblock}}', '{{tl|Legalthreatblock}}')
-	# TODO: these can be cut way down with regexes, but I was feeling lazy
-	if reason == "{{tl|do not delete}}":
-		newtext = newtext.replace('{{Temporary userpage}}', '')
-		newtext = newtext.replace('{{Blockedimpersonator}}', '{{Indefblockeduser|historical}}')
-		newtext = newtext.replace('{{Blockedtroll}}', '{{Blockedtroll|historical}}')
-		newtext = newtext.replace('{{Indefblockeduser-big}}', '{{Indefblockeduser-big|historical}}')
-		newtext = newtext.replace('{{Indefblockeduser}}', '{{Indefblockeduser|historical}}')
-		newtext = newtext.replace('{{Indefblockuser}}', '{{Indefblockuser|historical}}')
-		newtext = newtext.replace('{{Indefblock}}', '{{Indefblock|historical}}')
-		newtext = newtext.replace('{{Indefblocked}}', '{{Indefblocked|historical}}')
-		newtext = newtext.replace('{{Indef}}', '{{Indef|historical}}')
-		newtext = newtext.replace('{{IndefBlocked}}', '{{IndefBlocked|historical}}')
-		newtext = newtext.replace('{{Vpblock}}', '{{Vpblock|historical}}')
-		newtext = newtext.replace('{{Pagemovevandal}}', '{{Pagemovevandal|historical}}')
-		newtext = newtext.replace('{{Pageblankvandal}}', '{{Pageblankvandal|historical}}')
-		newtext = newtext.replace('{{Blockedindef}}', '{{Blockedindef|historical}}')
-		newtext = newtext.replace('{{Idb}}', '{{Idb|historical}}')
-		newtext = newtext.replace('{{Userindef}}', '{{userindef|historical}}')
-		newtext = newtext.replace('{{VOAblock}}', '{{VOAblock|historical}}')
+	newtext = newtext.replace('{{Temporary userpage}}', '')
+	newtext = newtext.replace('{{Blockedimpersonator}}', '{{tl|Indefblockeduser}}')
+	newtext = newtext.replace('{{Blockedtroll}}', '{{tl|Blockedtroll}}')
+	newtext = newtext.replace('{{Indefblockeduser-big}}', '{{tl|Indefblockeduser-big}}')
+	newtext = newtext.replace('{{Indefblockeduser}}', '{{tl|Indefblockeduser}}')
+	newtext = newtext.replace('{{Indefblockuser}}', '{{tl|Indefblockuser}}')
+	newtext = newtext.replace('{{Indefblock}}', '{{tl|Indefblock}}')
+	newtext = newtext.replace('{{Indefblocked}}', '{{tl|Indefblocked}}')
+	newtext = newtext.replace('{{Indef}}', '{{tl|Indef}}')
+	newtext = newtext.replace('{{IndefBlocked}}', '{{tl|IndefBlocked}}')
+	newtext = newtext.replace('{{Vpblock}}', '{{tl|Vpblock}}')
+	newtext = newtext.replace('{{Pagemovevandal}}', '{{tl|Pagemovevandal}}')
+	newtext = newtext.replace('{{Pageblankvandal}}', '{{tl|Pageblankvandal}}')
+	newtext = newtext.replace('{{Blockedindef}}', '{{tl|Blockedindef}}')
+	newtext = newtext.replace('{{Idb}}', '{{tl|Idb}}')
+	newtext = newtext.replace('{{Userindef}}', '{{tl|userindef}}')
+	newtext = newtext.replace('{{VOAblock}}', '{{tl|VOAblock}}')
 	
-		newtext = newtext.replace('{{temporary userpage}}', '')
-		newtext = newtext.replace('{{blockedimpersonator}}', '{{Indefblockeduser|historical}}')
-		newtext = newtext.replace('{{blockedtroll}}', '{{Blockedtroll|historical}}')
-		newtext = newtext.replace('{{indefblockeduser-big}}', '{{Indefblockeduser-big|historical}}')
-		newtext = newtext.replace('{{indefblockeduser}}', '{{Indefblockeduser|historical}}')
-		newtext = newtext.replace('{{indefblockuser}}', '{{Indefblockuser|historical}}')
-		newtext = newtext.replace('{{indefblock}}', '{{Indefblock|historical}}')
-		newtext = newtext.replace('{{indefblocked}}', '{{Indefblocked|historical}}')
-		newtext = newtext.replace('{{indef}}', '{{Indef|historical}}')
-		newtext = newtext.replace('{{indefBlocked}}', '{{IndefBlocked|historical}}')
-		newtext = newtext.replace('{{vpblock}}', '{{Vpblock|historical}}')
-		newtext = newtext.replace('{{pagemovevandal}}', '{{Pagemovevandal|historical}}')
-		newtext = newtext.replace('{{pageblankvandal}}', '{{Pageblankvandal|historical}}')
-		newtext = newtext.replace('{{blockedindef}}', '{{Blockedindef|historical}}')
-		newtext = newtext.replace('{{idb}}', '{{Idb|historical}}')
-		newtext = newtext.replace('{{userindef}}', '{{userindef|historical}}')
-		newtext = newtext.replace('{{vOAblock}}', '{{VOAblock|historical}}')
-	else:
-		newtext = newtext.replace('{{Temporary userpage}}', '')
-		newtext = newtext.replace('{{Blockedimpersonator}}', '{{tl|Indefblockeduser}}')
-		newtext = newtext.replace('{{Blockedtroll}}', '{{tl|Blockedtroll}}')
-		newtext = newtext.replace('{{Indefblockeduser-big}}', '{{tl|Indefblockeduser-big}}')
-		newtext = newtext.replace('{{Indefblockeduser}}', '{{tl|Indefblockeduser}}')
-		newtext = newtext.replace('{{Indefblockuser}}', '{{tl|Indefblockuser}}')
-		newtext = newtext.replace('{{Indefblock}}', '{{tl|Indefblock}}')
-		newtext = newtext.replace('{{Indefblocked}}', '{{tl|Indefblocked}}')
-		newtext = newtext.replace('{{Indef}}', '{{tl|Indef}}')
-		newtext = newtext.replace('{{IndefBlocked}}', '{{tl|IndefBlocked}}')
-		newtext = newtext.replace('{{Vpblock}}', '{{tl|Vpblock}}')
-		newtext = newtext.replace('{{Pagemovevandal}}', '{{tl|Pagemovevandal}}')
-		newtext = newtext.replace('{{Pageblankvandal}}', '{{tl|Pageblankvandal}}')
-		newtext = newtext.replace('{{Blockedindef}}', '{{tl|Blockedindef}}')
-		newtext = newtext.replace('{{Idb}}', '{{tl|Idb}}')
-		newtext = newtext.replace('{{Userindef}}', '{{tl|userindef}}')
-		newtext = newtext.replace('{{VOAblock}}', '{{tl|VOAblock}}')
-		
-		newtext = newtext.replace('{{temporary userpage}}', '')
-		newtext = newtext.replace('{{blockedimpersonator}}', '{{tl|Indefblockeduser}}')
-		newtext = newtext.replace('{{blockedtroll}}', '{{tl|Blockedtroll}}')
-		newtext = newtext.replace('{{indefblockeduser-big}}', '{{tl|Indefblockeduser-big}}')
-		newtext = newtext.replace('{{indefblockeduser}}', '{{tl|Indefblockeduser}}')
-		newtext = newtext.replace('{{indefblockuser}}', '{{tl|Indefblockuser}}')
-		newtext = newtext.replace('{{indefblock}}', '{{tl|Indefblock}}')
-		newtext = newtext.replace('{{indefblocked}}', '{{tl|Indefblocked}}')
-		newtext = newtext.replace('{{indef}}', '{{tl|Indef}}')
-		newtext = newtext.replace('{{indefBlocked}}', '{{tl|IndefBlocked}}')
-		newtext = newtext.replace('{{vpblock}}', '{{tl|Vpblock}}')
-		newtext = newtext.replace('{{pagemovevandal}}', '{{tl|Pagemovevandal}}')
-		newtext = newtext.replace('{{pageblankvandal}}', '{{tl|Pageblankvandal}}')
-		newtext = newtext.replace('{{blockedindef}}', '{{tl|Blockedindef}}')
-		newtext = newtext.replace('{{idb}}', '{{tl|Idb}}')
-		newtext = newtext.replace('{{userindef}}', '{tl|{userindef}}')
-		newtext = newtext.replace('{{vOAblock}}', '{{tl|VOAblock}}')
-	
+	newtext = newtext.replace('{{temporary userpage}}', '')
+	newtext = newtext.replace('{{blockedimpersonator}}', '{{tl|Indefblockeduser}}')
+	newtext = newtext.replace('{{blockedtroll}}', '{{tl|Blockedtroll}}')
+	newtext = newtext.replace('{{indefblockeduser-big}}', '{{tl|Indefblockeduser-big}}')
+	newtext = newtext.replace('{{indefblockeduser}}', '{{tl|Indefblockeduser}}')
+	newtext = newtext.replace('{{indefblockuser}}', '{{tl|Indefblockuser}}')
+	newtext = newtext.replace('{{indefblock}}', '{{tl|Indefblock}}')
+	newtext = newtext.replace('{{indefblocked}}', '{{tl|Indefblocked}}')
+	newtext = newtext.replace('{{indef}}', '{{tl|Indef}}')
+	newtext = newtext.replace('{{indefBlocked}}', '{{tl|IndefBlocked}}')
+	newtext = newtext.replace('{{vpblock}}', '{{tl|Vpblock}}')
+	newtext = newtext.replace('{{pagemovevandal}}', '{{tl|Pagemovevandal}}')
+	newtext = newtext.replace('{{pageblankvandal}}', '{{tl|Pageblankvandal}}')
+	newtext = newtext.replace('{{blockedindef}}', '{{tl|Blockedindef}}')
+	newtext = newtext.replace('{{idb}}', '{{tl|Idb}}')
+	newtext = newtext.replace('{{userindef}}', '{tl|{userindef}}')
+	newtext = newtext.replace('{{vOAblock}}', '{{tl|VOAblock}}')
 	if not(newtext == text):
 		if not save:
 			return (userpage, newtext)
