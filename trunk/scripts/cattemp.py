@@ -66,6 +66,7 @@ def main():
 		traceback.print_exc()
 
 def handleIPs():
+	print "Removing IP pages"
 	if not IPs:
 		return
 	query = "SELECT ipb_expiry FROM ipblocks WHERE ipb_address=%s AND ipb_auto=0 AND ipb_user=0"
@@ -76,9 +77,12 @@ def handleIPs():
 			removePage(IPs[IP], "IP page")
 		else:
 			(userpage, content) = removePage(IPs[IP], "IP page", "", save=False)
+			if not userpage:
+				continue
 			content += '\n\n[[Category:Indefinitely blocked IP addresses]]'
 			try:
 				userpage.edit(newtext=content, summary="Removing Temporary userpage category, adding indef blocked IPs category", minor=True, bot=True, basetime=userpage.lastedittime)
+				print(userpage.title + " - Indef blocked IP")
 				l = codecs.open('LogFile.txt', 'ab', 'utf-8')
 				l.write('\n# [[' + userpage.title + ']] - Indef blocked IP')
 				l.close()
@@ -97,16 +101,15 @@ def deletePages():
 	ts = datetime.datetime.utcnow() - datetime.timedelta(days=30)
 	ts = long(ts.strftime('%Y%m%d%H%M%S'))
 	query = """SELECT page_namespace,page_title,page_id FROM page
-		JOIN revision ON rev_page=page_id 
+		JOIN revision ON rev_page=page_id AND rev_id=page_latest
 		JOIN categorylinks ON cl_from=page_id 
-		WHERE cl_to="Temporary_Wikipedian_userpages" 
-		GROUP BY rev_timestamp HAVING MAX(CAST(rev_timestamp AS UNSIGNED)) < %s """
+		WHERE cl_to="Temporary_Wikipedian_userpages" AND CAST(rev_timestamp AS UNSIGNED) < %s"""
 	cursor.execute(query, ts)
 	result = set(cursor.fetchall())
 	for res in result:
 		userpage = page.Page(site, title=res[1], check=False, followRedir=False, pageid=int(res[2]))
 		userpage.setNamespace(res[0])
-		if userpage.title in removed:
+		if int(userpage.pageid) in removed:
 			continue
 		userpage.setPageInfo()
 		try:
@@ -116,10 +119,10 @@ def deletePages():
 		try:
 			userpage.delete(reason="Old [[CAT:TEMP|temporary userpage]]")
 			dl = codecs.open('DelLogFile.txt', 'ab', 'utf-8')
-			dl.write('\n# [[' + p.title + ']]')
+			dl.write('\n# [[' + userpage.title + ']]')
 			dl.close()
 		except:
-			reportError(p, "Deletion error: "+res['error']['code'], True)
+			reportError(userpage, "Deletion error: "+res['error']['code'], True)
 		
 def queries():
 	print "Doing namespace check"
@@ -128,7 +131,7 @@ def queries():
 		WHERE page_namespace<2 AND page_namespace>3 AND cl_to='Temporary_Wikipedian_userpages'"""
 	doQuery(query, "wrong namespace")
 	
-	print "Removing IP addresses"
+	print "Getting IP addresses"
 	query = """SELECT page_namespace,page_title,page_id FROM page 
 		JOIN categorylinks ON cl_from=page_id 
 		WHERE cl_to="Temporary_Wikipedian_userpages" 
@@ -140,7 +143,7 @@ def queries():
 			 break
 		userpage = page.Page(site, title=res[1], check=False, followRedir=False, pageid=int(res[2]))
 		userpage.setNamespace(res[0])
-		IPs[res[1]] = userpage.title
+		IPs[res[1]] = res
 		removed.add(int(res[2]))
 	
 	print "Checking for {{Do not delete}}"
@@ -228,29 +231,22 @@ def errorlog():
 	logpage.edit(text=logtext + logdump , summary="Log", minor=True)
 	dl.close()
 	
-	
-def timestampToDate(timestamp):
-	year = re.search("\d\d\d\d", timestamp).group(0)
-	month = re.search("\d\d\d\d-(\d\d)-(\d\d)", timestamp).group(1)
-	day = re.search("\d\d\d\d-(\d\d)-(\d\d)", timestamp).group(2)
-	date = datetime.date(int(year), int(month), int(day))
-	return date
-	
 def removePage(res, reason, other=False, save=True):
 	global removed
-	if int(res[2]) in removed:
-		return
+	if int(res[2]) in removed and not (res[1] in IPs and reason == "IP page"):
+		return (False, False)
 	userpage = page.Page(site, title=res[1], check=False, followRedir=False, pageid=int(res[2]))
 	userpage.setNamespace(res[0])
 	removed.add(int(res[2]))
-	if page.title in titlewhitelist:
-		return
-	try:
-		print(userpage.title + " - " + reason)
-	except:
-		print(userpage.pageid + " - " + reason)
-	if other:
-		print(other)
+	if userpage.title in titlewhitelist:
+		return (False, False)
+	if save:
+		try:
+			print(userpage.title + " - " + reason)
+		except:
+			print(userpage.pageid + " - " + reason)
+		if other:
+			print(other)
 	text = userpage.getWikiText()
 	newtext = re.sub(r'\[\[Category:Temporary Wikipedian userpages.*?\]\]', '', text)
 	# TODO: these can be cut way down with regexes, but I was feeling lazy
