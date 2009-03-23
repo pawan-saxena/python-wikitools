@@ -69,13 +69,9 @@ def sendEmail(mail, subj):
 	#toaddr = ["mrzmanwikimail@gmail.com"]
 	msg = MIMENonMultipart('text', 'plain')
 	msg['Content-Transfer-Encoding'] = '8bit'
-	#msg['charset'] = 'utf-8'
-	#msg.set_charset('utf-8')
-	#msg['Content-Transfer-Encoding'] = '7bit'
 	msg.set_payload(mail.encode('utf8'), 'utf-8')
 	msg['From'] = fromaddr
 	msg['To'] = toaddr[0]
-	msg['Bcc'] = toaddr[1]
 	msg['Subject'] = subj
 	server = smtplib.SMTP('smtp.gmail.com', 587)
 	server.ehlo()
@@ -83,7 +79,10 @@ def sendEmail(mail, subj):
 	server.ehlo()
 	server.login(settings.email, settings.emailpass)
 	body = msg.as_string()
-	server.sendmail(fromaddr, toaddr, body, '8bitmime')
+	server.sendmail(fromaddr, toaddr[0], body, '8bitmime')
+	msg['To'] = toaddr[1]
+	body = msg.as_string()
+	server.sendmail(fromaddr, toaddr[1], body, '8bitmime')
 	server.quit()	
 	
 def makeDAL(article, anivs, word, quote):
