@@ -72,7 +72,10 @@ def handleIPs():
 	query = "SELECT ipb_expiry FROM ipblocks WHERE ipb_address=%s AND ipb_auto=0 AND ipb_user=0"
 	for IP in IPs:
 		cursor.execute(query, IP)
-		time = cursor.fetchone()[0]
+		try:
+			time = cursor.fetchone()[0]
+		except:
+			time = False
 		if time != 'infinity':
 			removePage(IPs[IP], "IP page")
 		else:
@@ -119,10 +122,10 @@ def deletePages():
 		try:
 			userpage.delete(reason="Old [[CAT:TEMP|temporary userpage]]")
 			dl = codecs.open('DelLogFile.txt', 'ab', 'utf-8')
-			dl.write('\n# [[' + userpage.title + ']]')
+			dl.write('\n# [[' + userpage.title.decode('utf8') + ']]')
 			dl.close()
-		except:
-			reportError(userpage, "Deletion error: "+res['error']['code'], True)
+		except api.APIError, e:
+			reportError(userpage, "Deletion error: "+e['error']['code'], True)
 		
 def queries():
 	print "Doing namespace check"
