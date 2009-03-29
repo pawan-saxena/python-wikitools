@@ -188,6 +188,14 @@ def queries():
 			(SELECT cl_from FROM categorylinks 
 				WHERE cl_to IN ("""+catlist+"""))"""
 	doQuery(query, "page in spam category")
+	
+	print "Doing revision count check"
+	query = """SELECT page_namespace,page_title,page_id FROM page 
+		JOIN revision ON rev_page=page_id 
+		JOIN categorylinks ON cl_from=page_id 
+		WHERE cl_to="Temporary_Wikipedian_userpages" AND page_namespace=3 
+		GROUP BY page_id HAVING COUNT(rev_id)>=100"""
+	doQuery(query, "100 or more revisions")
 
 def doQuery(query, reason):
 	cursor.execute(query)
