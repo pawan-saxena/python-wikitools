@@ -6,6 +6,7 @@ import datetime
 import re
 import os
 import settings
+import codecs
 
 unref = ['Unreferenced',
 'Notverifiable',
@@ -58,7 +59,7 @@ try:
 	os.remove('blpcaterrs.txt')
 except:
 	pass
-err = open('blpcaterrs.txt', 'ab')
+err = codecs.open('blpcaterrs.txt', 'ab', 'utf8')
 
 site = wiki.Wiki()
 site.login(settings.bot, settings.botpass)
@@ -82,7 +83,7 @@ def main():
 				ai = None
 		# Get the unrefernced template
 		unreftemp = urt.search(text)
-		if unreftemp and 'date' in unreftemp.groupdict() and 'section' in unreftemp.group('date'):
+		if unreftemp and 'date' in unreftemp.groupdict() and unreftemp.group('date') and 'section' in unreftemp.group('date'):
 			unreftemp = None
 		if len(urt.findall(text)) > 1:
 			logErr("Multiple {{tl|unreferenced}} found on page", p)
@@ -94,7 +95,7 @@ def main():
 		blpunreftemp = blpurt.search(text)
 		# Get the date from one of the templates
 		timestamp = False
-		if unreftemp and 'date' in unreftemp.groupdict():
+		if unreftemp and unreftemp.group('date') and 'date' in unreftemp.groupdict():
 			d = unreftemp.group('date')
 			if isValidTime(d):
 				timestamp = d.strip()
@@ -121,20 +122,19 @@ def main():
 		elif not blpunreftemp and ai and unreftemp:         # AI and unreferenced
 			newtext = removeFromAI(aiinner, text)
 			newtext = removeUnref(newtext)
-			newtext = addBLPUR(newtext, timestamp, aiinner)
+			newtext = addtoAI(newtext, timestamp, aiinner)
 		elif not blpunreftemp and not ai and unreftemp:     # Only unreferenced
-			newtext = removeUnref(text)
-			newtext = addBLPUR(newtext, timestamp, False)
+			newtext = replaceUnref(text, timestamp)
 		elif not blpunreftemp and ai and not unreftemp:     # Only AI
 			newtext = removeFromAI(aiinner, text)
-			newtext = addBLPUR(newtext, timestamp, aiinner)
+			newtext = addtoAI(newtext, timestamp, aiinner)
 		elif not blpunreftemp and not ai and not unreftemp: # Nothing
 			logErr("No template found to remove", p)
 			continue
 		if text == newtext:
 			logErr("No change made", p)
 			continue
-		p.edit(text=newtext, summary="Unreferenced BLP", minor=True, bot=True)
+		p.edit(text=newtext, summary="Unreferenced [[WP:BLP|BLP]]", minor=True, bot=True)
 			
 def isValidTime(timestamp):
 	try:
@@ -157,27 +157,29 @@ def removeFromAI(aiinner, text):
 def removeUnref(text):
 	return urt.sub('', text)
 	
-def addBLPUR(text, timestamp, aiinner):
+def replaceUnref(text, timestamp):
 	if not timestamp:
 		timestamp = datetime.datetime.now().strftime('%B %Y')
-	if aiinner:
-		aiinner['BLPunsourced'] = timestamp
-		newai = "{{article issues"
-		for issue in aiinner.keys():
-			newai += "\n| "+issue+ " = "+aiinner[issue]
-		newai += "\n}}"
-		text = articleissues.sub(newai, text)
-		return text
-	else:
-		template = "{{BLP unsourced|date=%s}}\n" % timestamp
-		text = template+text
-		return text
+	template = "{{BLP unsourced|date=%s}}\n" % timestamp
+	return urt.sub(template, text)
+		
+def addtoAI(text, timestamp, aiinner):
+	if not timestamp:
+		timestamp = datetime.datetime.now().strftime('%B %Y')
+	aiinner['BLPunsourced'] = timestamp
+	newai = "{{article issues"
+	for issue in aiinner.keys():
+		newai += "\n| "+issue+ " = "+aiinner[issue]
+	newai += "\n}}"
+	text = articleissues.sub(newai, text)
+	return text
 			
 def logErr(msg, p=False):
 	title = "Error"
 	if p:
 		title = "[[%s]]" % p.title
 	err.write('; %s : %s \n' % (title, msg))		
+	err.flush()
 
 if __name__ == "__main__":
 	main()
