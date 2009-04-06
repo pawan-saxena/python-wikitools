@@ -134,7 +134,10 @@ def main():
 		if text == newtext:
 			logErr("No change made", p)
 			continue
-		p.edit(text=newtext, summary="Unreferenced [[WP:BLP|BLP]]", minor=True, bot=True)
+		try:
+			p.edit(text=newtext, summary="Unreferenced [[WP:BLP|BLP]]", minor=True, bot=True)
+		except api.APIError, e:
+			logErr(e[1], p)
 			
 def isValidTime(timestamp):
 	try:
