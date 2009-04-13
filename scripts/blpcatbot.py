@@ -73,14 +73,14 @@ WHERE clA.cl_to="Living_people" AND clB.cl_to="All_articles_lacking_sources" AND
 ORDER BY page_title ASC"""
 
 def main():
-	db = MySQLdb.connect(host="sql-s1", db='enwiki_p', read_default_file="/home/alexz/.my.cnf", use_unicode=True, charset='utf8')
+	db = MySQLdb.connect(host="sql-s1", db='enwiki_p', read_default_file="/home/alexz/.my.cnf")
 	cursor = db.cursor()
 	cursor.execute(query)
 	while True:
 		title = cursor.fetchone()
 		if not title:
 			break
-		p = page.Page(site, title[0])
+		p = page.Page(site, title[0].decode('utf8'))
 		text = p.getWikiText()
 		# Get article issues template
 		ai = articleissues.search(text)
