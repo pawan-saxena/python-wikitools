@@ -48,11 +48,12 @@ blpunref = ['BLP unsourced',
 
 unrefs = '|'.join(unref)
 blpunrefs = '|'.join(blpunref)
-initial = re.compile('\{\{('+unrefs+'|article issues|articleissues|Ai|issues)', re.I)
 articleissues = re.compile('\{\{(Article ?issues|Ai|issues)(?P<content>[^\}]*)\}\}', re.I)
 ai2 = re.compile('([^=\n\|\s]*)\s*=\s*([^\|\n]*)', re.I)
 urt = re.compile('\{\{('+unrefs+')(?:\|\s*(?:date\s*=\s*)?(?P<date>[^\}]*))?\}\}\n?', re.I)
 blpurt = re.compile('\{\{('+blpunrefs+')(?:\|\s*(?:date\s*=\s*)?(?P<date>[^\}]*))?\}\}', re.I)
+primary = re.compile('\{\{(primarysources|citecheck)(?:\|\s*(?:date\s*=\s*)?(?P<date>[^\}]*))?\}\}', re.I)
+
 rmdate = re.compile('date\s*=\s*', re.I)
 
 try:
@@ -64,11 +65,22 @@ err = codecs.open('blpcaterrs.txt', 'ab', 'utf8')
 site = wiki.Wiki()
 site.login(settings.bot, settings.botpass)
 
+query = """
+SELECT DISTINCT page_title FROM page
+JOIN categorylinks AS clA ON page_id=clA.cl_from
+JOIN categorylinks AS clB ON page_id=clB.cl_from AND clA.cl_from=clB.cl_from
+WHERE clA.cl_to="Living_people" AND clB.cl_to="All_articles_lacking_sources" AND page_namespace=0
+ORDER BY page_title ASC"""
+
 def main():
-	f = open('../wrongcats.txt', 'rb')
-	count = 0
-	for line in f:
-		p = page.Page(site, line.rstrip("\n"))
+	db = MySQLdb.connect(host="sql-s1", db='enwiki_p', read_default_file="/home/alexz/.my.cnf", use_unicode=True, charset='utf8')
+	cursor = db.cursor()
+	cursor.execute(query)
+	while True:
+		title = cursor.fetchone()
+		if not title:
+			break
+		p = page.Page(site, title[0])
 		text = p.getWikiText()
 		# Get article issues template
 		ai = articleissues.search(text)
@@ -129,13 +141,14 @@ def main():
 			newtext = removeFromAI(aiinner, text)
 			newtext = addtoAI(newtext, timestamp, aiinner)
 		elif not blpunreftemp and not ai and not unreftemp: # Nothing
-			logErr("No template found to remove", p)
+			if not primary.search(text):
+				logErr("No template found to remove", p)
 			continue
 		if text == newtext:
 			logErr("No change made", p)
 			continue
 		try:
-			p.edit(text=newtext, summary="Unreferenced [[WP:BLP|BLP]]", minor=True, bot=True)
+			p.edit(text=newtext, summary="updating tags: unreferenced [[WP:BLP|BLP]]", minor=True, bot=True)
 		except api.APIError, e:
 			logErr(e[1], p)
 			
