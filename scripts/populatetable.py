@@ -65,8 +65,7 @@ lines = lines.splitlines()
 
 for cat in lines:
 	print "Getting pages in %s" % (cat)
-	c.execute(selquery, (cat))
-
+	c.execute(insquery, (cat))
 
 del lines
 f.close()
