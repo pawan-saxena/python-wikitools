@@ -31,7 +31,7 @@ def main():
 	u = re.compile("(\-?(\d{1,2})(\.\d+)?)\s*[º°]\s*(((\d{1,2})(\.\d+)?)\s*\')?\s*(((\d{1,2})(\.\d+)?)\s*\")?\s*([NS])?[\s,\.]*(\-?(\d{1,3})(\.\d+)?)\s*[º°]\s*(((\d{1,2})(\.\d+)?)\s*\')?\s*(((\d{1,2})(\.\d+)?)\s*\")?\s*([EW])?", re.I|re.S)
 	db = MySQLdb.connect(db='u_alexz', host="sql", read_default_file="/home/alexz/.my.cnf")
 	cursor = db.cursor()
-	cursor.execute("SELECT title FROM photocoords")
+	cursor.execute("SELECT title FROM photocoords_2")
 	titles = cursor.fetchall()
 	count = 0
 	cursor.execute('START TRANSACTION')
@@ -44,7 +44,7 @@ def main():
 				cursor.execute('COMMIT')
 				cursor.execute('START TRANSACTION')
 			title = item[0]
-			cursor.execute('SELECT * FROM photocoords WHERE title=%s', title)
+			cursor.execute('SELECT * FROM photocoords_2 WHERE title=%s', title)
 			res = cursor.fetchone()[2]
 			if res:
 				continue
@@ -120,7 +120,7 @@ def main():
 				cursor.execute("INSERT INTO photoerrors (error, title) VALUES (%s, %s);", (error, title) )
 				continue
 			coordinates = coords.coords(lat, long)
-			cursor.execute("UPDATE photocoords SET latitude=%s, longitude=%s WHERE title=%s;", (coordinates.lat, coordinates.long, title) )
+			cursor.execute("UPDATE photocoords_2 SET latitude=%s, longitude=%s WHERE title=%s;", (coordinates.lat, coordinates.long, title) )
 		except coords.BadInput:
 			error = "Unable to parse coords"
 			cursor.execute("INSERT INTO photoerrors (error, title, latitude, longitude) VALUES (%s, %s, %s, %s);", (error, title, lat, long) )
