@@ -46,14 +46,13 @@ f.close()
 # GET TITLES
 print "Getting titles"
 c.execute("""CREATE TABLE IF NOT EXISTS u_alexz.catpages_tmp (
-  `pageid` int(11) NOT NULL,
   `title` varchar(255) NOT NULL,
-  PRIMARY KEY  (`pageid`)
+  KEY `title` (`title`)
 ) ENGINE=InnoDB;
 """)
 c.execute("TRUNCATE TABLE u_alexz.catpages_tmp")
 
-insquery = """INSERT IGNORE INTO u_alexz.catpages_tmp (pageid, title)
+insquery = """INSERT IGNORE INTO u_alexz.catpages_tmp (title)
 SELECT enwiki_p.page.page_title FROM enwiki_p.page
 JOIN enwiki_p.categorylinks ON enwiki_p.page.page_id=enwiki_p.categorylinks.cl_from
 WHERE enwiki_p.page.page_namespace=1 AND enwiki_p.categorylinks.cl_to=%s"""
@@ -65,7 +64,9 @@ lines = lines.splitlines()
 
 for cat in lines:
 	print "Getting pages in %s" % (cat)
+	c.execute("START TRANSACTION")
 	c.execute(insquery, (cat))
+	c.execute("COMMIT")
 
 del lines
 f.close()
@@ -89,6 +90,13 @@ print "Making temp table"
 db2 = MySQLdb.connect(db='u_alexz', host="sql", read_default_file="/home/alexz/.my.cnf")
 c2 = db2.cursor()
 insquery2 = """INSERT INTO u_alexz.photocoords_2 (title) VALUES (%s)"""
+
+try:
+	c2.execute("START TRANSACTION")
+	c2.execute("DROP TABLE photocoords_2")
+	c2.execute("COMMIT")
+except:
+	pass
 
 c2.execute("START TRANSACTION")
 c2.execute("""CREATE TABLE IF NOT EXISTS `photocoords_2` (
@@ -121,16 +129,23 @@ photolocate.main()
 # GOT COORDINATES
 # MOVE TABLES
 print "Moving tables"
-c2.execute("START TRANSACTION")
-c2.execute("DROP TABLE photocoords")
-c2.execute("COMMIT")
+db2 = MySQLdb.connect(db='u_alexz', host="sql", read_default_file="/home/alexz/.my.cnf")
+c2 = db2.cursor()
+db = MySQLdb.connect(host="sql-s1", read_default_file="/home/alexz/.my.cnf")
+c = db.cursor()
+try:
+	c2.execute("START TRANSACTION")
+	c2.execute("DROP TABLE photocoords")
+	c2.execute("COMMIT")
+except:
+	pass
 
 c2.execute("START TRANSACTION")
-c2.execute("""CREATE TABLE IF NOT EXISTS `photocoords_2` (
+c2.execute("""CREATE TABLE IF NOT EXISTS `photocoords` (
   `title` varchar(255) CHARACTER SET utf8 COLLATE utf8_bin,
   `latitude` float DEFAULT NULL,
   `longitude` float DEFAULT NULL,
-  KEY `lat_long` (`latitude`,`longitude`),
+  KEY `lat_long` (`latitude`,`longitude`)
 ) ENGINE=InnoDB""")
 c2.execute("COMMIT")
 
