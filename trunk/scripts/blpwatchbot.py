@@ -17,7 +17,7 @@ def main():
 	if add:
 		text = ''
 		for title in add:
-			text += '#[['+title+']]\n'
+			text += '\n#[['+title+']]'
 		comment = "Adding "+str(len(add))+" page"
 		if len(add) > 1:
 			comment+='s'
