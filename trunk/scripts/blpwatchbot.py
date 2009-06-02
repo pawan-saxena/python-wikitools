@@ -21,7 +21,7 @@ def main():
 		comment = "Adding "+str(len(add))+" page"
 		if len(add) > 1:
 			comment+='s'
-		listpage.edit(summary=sum, bot=True, appendtext=text)
+		listpage.edit(summary=comment, bot=True, appendtext=text)
 	
 def getPossibleTitles(text):
 	secreg = re.compile('\n==(.*?)==\n')
