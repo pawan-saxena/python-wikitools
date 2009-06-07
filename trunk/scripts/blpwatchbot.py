@@ -21,7 +21,7 @@ def main():
 		comment = "Adding "+str(len(add))+" page"
 		if len(add) > 1:
 			comment+='s'
-		listpage.edit(summary=comment, bot=True, appendtext=text)
+		listpage.edit(summary=comment, bot=True, appendtext=text.encode('utf8'))
 	
 def getPossibleTitles(text):
 	secreg = re.compile('\n==(.*?)==\n')
@@ -31,6 +31,7 @@ def getPossibleTitles(text):
 	sections = secreg.findall(text)
 	links = re.compile('\[\[(.*?)\]\]')
 	for s in sections:
+		s = unicode(s, 'utf8')
 		if True in [title in s for title in titles]:
 			continue
 		s = s.strip()
