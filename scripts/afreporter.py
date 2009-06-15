@@ -119,7 +119,7 @@ def main():
 	IRCut = timedTracker() # user tracker for IRC
 	AIVut = timedTracker() # user tracker for AIV
 	IRCreported = timedTracker(expiry=60)
-	AIVreported = timedTracker(expiry=120)
+	AIVreported = timedTracker(expiry=600)
 	titles = timedTracker() # this only reports to IRC for now
 	query = """SELECT afl_user_text,afl_action,afl_id,afl_namespace,afl_title,afl_filter,afl_timestamp
 	FROM abuse_filter_log WHERE afl_id>%s ORDER BY afl_id DESC"""
