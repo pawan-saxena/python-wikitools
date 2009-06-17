@@ -7,8 +7,8 @@ import settings, datetime, re, htmlentitydefs, urllib, codecs, smtplib, sys
 
 TFAreg = re.compile(".*?\n([^\n]*'''\[\[.*?)\|more\.\.\.\]\]'''\)", re.I|re.S)
 TFAtitle = re.compile("\('''\[\[(.*?)\|more\.\.\.\]\]'''")
-anivreg = re.compile("'''\s?\"?\[\[(.*?)\]\]\"?\s?'''")
-anivyear = re.compile("\{\{\*mp\}\}\s?\[\[(?P<year>[0-9]*)(?P<suf> AD| CE| BC| BCE)?\]\] &ndash;")
+anivreg = re.compile("'''\s?\"?\[\[(.*?)\]\]\"?s?[\.\,]?\s?'''")
+anivyear = re.compile("\{\{\*mp\}\}\s?\[\[(?P<year>[0-9]*)(?P<suf> AD| CE| BC| BCE)?\]\] +&ndash;")
 anivpicture = re.compile("\([^\)]*?pictured\)", re.I)
 quotename = re.compile("~ \[\[(.*?)\]\].*")
 
@@ -113,7 +113,7 @@ def makeDAL(article, anivs, word, quote):
 	mail += '_____________________________\n'
 	mail += "Wiktionary's word of the day:\n\n"
 	wotd = word.keys()[0]
-	mail += "%s (%s):\n" % (wotd, word[wotd]['type'])
+	mail += "%s (%s):\n" % (wotd.decode('utf8'), word[wotd]['type'])
 	mail += breaklines(word[wotd]['definition']) + '\n'
 	linktext = preparelink(wotd)
 	mail += '<http://en.wiktionary.org/wiki/%s>\n\n' % (linktext)
