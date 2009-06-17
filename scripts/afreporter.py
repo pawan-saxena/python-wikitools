@@ -11,6 +11,10 @@ import urllib
 import os
 import traceback
 import re
+try:
+	import json
+except:
+	import simplejson as json
 
 connections = {}
 
@@ -98,6 +102,12 @@ class BotRunnerThread(threading.Thread):
 		
 	def run(self):
 		self.bot.start()
+
+def sendToChannel(msg):
+	f = open('/home/alexz/messages', 'ab')
+	f.write(msg+"\n")
+	f.close()
+	connections['command'].privmsg("#wikipedia-en-abuse-log", msg)
 		
 immediate = set() 
 vandalism = set()
@@ -115,7 +125,13 @@ def main():
 	cThread.daemon = True
 	cThread.start()
 	while len(connections) != 1:
-		pass
+		time.sleep(2)
+	time.sleep(5)
+	f = open('/home/alexz/messages', 'ab')
+        f.write("Started\n")
+        f.close()
+	replag()
+	repcheck = time.time()
 	IRCut = timedTracker() # user tracker for IRC
 	AIVut = timedTracker() # user tracker for AIV
 	IRCreported = timedTracker(expiry=60)
@@ -131,6 +147,14 @@ def main():
 		if time.time() > listcheck+300:
 			getLists()
 			listcheck = time.time()
+		if time.time() > repcheck+600:
+			rep = replag()
+			repcheck = time.time()
+			if rep:
+				db = MySQLdb.connect(db='enwiki_p', host="sql-s1", read_default_file="/home/alexz/.my.cnf")
+				cursor = db.cursor()
+				cursor.execute('SELECT afl_id FROM abuse_filter_log ORDER BY afl_id DESC LIMIT 1')
+				lastid = cursor.fetchone()[0]
 		cursor.execute(query, lastid)
 		res = cursor.fetchall()
 		attempts = []
@@ -159,8 +183,7 @@ def main():
 			IRCut[username]+=1
 			# 5 hits in 5 mins
 			if IRCut[username] == 5 and not username in IRCreported:
-				connections['command'].privmsg("#wikipedia-en-abuse-log", 
-				"!alert - [[User:%s]] has tripped 5 filters within the last 5 minutes: "\
+				sendToChannel("!alert - [[User:%s]] has tripped 5 filters within the last 5 minutes: "\
 				"http://en.wikipedia.org/wiki/Special:AbuseLog?wpSearchUser=%s"\
 				%(username, urllib.quote(username)))
 				del IRCut[username]
@@ -177,8 +200,7 @@ def main():
 			if titles[(ns,t)] == 10 and not (ns,t) in IRCreported:
 				p = page.Page(site, t, check=False, followRedir=False)
 				p.setNamespace(ns)
-				connections['command'].privmsg("#wikipedia-en-abuse-log", 
-				"!alert - 10 filters in the last 5 minutes have been tripped on [[%s]]: "\
+				sendToChannel("!alert - 10 filters in the last 5 minutes have been tripped on [[%s]]: "\
 				"http://en.wikipedia.org/wiki/Special:AbuseLog?wpSearchTitle=%s"\
 				%(p.title.encode('utf8'), p.urltitle))
 				del titles[(ns,t)]
@@ -195,6 +217,35 @@ def main():
 		if res:
 			lastid = res[0][2]
 		time.sleep(1.5)
+
+def replag():
+	global connections
+	f = open('/home/alexz/messages', 'ab')
+	f.write("Checking replag\n")
+	f.close()
+	reported = False
+	r = False
+	while True:
+		while not r:
+			try:
+				r = urllib.urlopen('http://toolserver.org/~soxred93/api.php?action=replag&format=json')
+			except IOError:
+				pass
+		res = json.loads(r.read())
+		r = False
+		replag = res['s1']
+		if replag > 300 and not reported:
+			sendToChannel("Toolserver replag too high, stopping reports")
+			reported = True
+		if replag > 120 and reported:
+			time.sleep(300)
+		else:
+			break
+	if reported:
+		sendToChannel("Restarting reports")
+		return True
+	return False
+	
 
 def reportUser(u, filter=None, hit=None):
 	username = u.name.encode('utf8')
@@ -215,6 +266,9 @@ def reportUser(u, filter=None, hit=None):
 	AIV.edit(appendtext=line, summary=editsum)
 
 def getLists():
+	f = open('/home/alexz/messages', 'ab')
+        f.write("Getting lists\n")
+        f.close()
 	lists = page.Page(site, "User:Mr.Z-bot/filters.js", check=False)
 	cont = lists.getWikiText(force=True)
 	lines = cont.splitlines()
