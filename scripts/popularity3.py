@@ -9,18 +9,22 @@ import gzip
 import hashlib
 import MySQLdb
 import sys
-import projectlister
+import pl
 from wikitools import wiki, page
 import settings
 import calendar
 
-articletypes = {'unassessed':'{{unassessed-Class}}', 'image':'{{image-Class}}',
+articletypes = {'unassessed':'{{unassessed-Class}}', 'file':'{{File-Class}}',
 	'template':'{{template-Class}}', 'category':'{{category-Class}}', 'disambig':'{{disambig-Class}}',
 	'portal':'{{portal-Class}}', 'list':'{{list-Class}}',
 	'non-article':'{{NA-Class}}', 'blank':'{{NA-Class}}', 'stub':'{{stub-Class}}', 'start':'{{start-Class}}',
 	'C':'{{C-Class}}', 'B':'{{B-Class}}', 'GA':'{{GA-Class}}', 'A':'{{A-Class}}',
 	'FL':'{{FL-Class}}', 'FA':'{{FA-Class}}'} # This should cover most instances, some projects have some odd ones
 
+importancetemplates = {'Top':'{{Top-importance}}', 'High':'{{High-importance}}', 'Mid':'{{Mid-importance}}',
+	'Low':'{{Low-importance}}', 'Bottom':'{{Bottom-importance}}', 'No':'{{No-importance}}', 'NA':'{{NA-importance}}',
+	'Unknown':'{{-importance}}' }
+	
 class HitsDict():
 	def __init__(self, args={}):
 		self.vals = []
@@ -228,20 +232,21 @@ def unlock():
 	lock.close()
 	
 def makeResults(date):
-	projectlist = projectlister.projects
+	lister = pl.ProjectLister()
+	projects = lister.projects
 	month = date.month
 	year = date.year
 	numdays = calendar.monthrange(year, month)[1]
 	table = date.strftime('pop_%b%y')
 	db = MySQLdb.connect(host="sql", db='u_alexz', read_default_file="/home/alexz/.my.cnf")
 	cursor = db.cursor()
-	for project in projectlist.keys():
-		listpage = projectlist[project][1]
-		target = page.Page(site, listpage)
+	for proj in projects.keys():
+		target = page.Page(site, projects[proj].listpage)
 		section = 0
 		if target.exists:
 			section = 1
-		header = "This is a list of the top 1000 (or all) pages ordered by number of views in the scope of the "+projectlist[project][0]+" Wikiproject.\n\n"
+		limit = projects[proj].limit
+		header = "This is a list of the top 1000 (or all) pages ordered by number of views in the scope of the "+projects[proj].name+".\n\n"
 		header += "The data comes from data published by [[User:Midom|Domas Mituzas]] from Wikipedia's [[Squid (software)|squid]] server logs. "
 		header += "Note that due to the use of a different program than http://stats.grok.se/ the numbers here may differ from that site. For more information, "
 		header += "or for a copy of the full data for all pages, leave a message on [[User talk:Mr.Z-man|this talk page]].\n\n"
@@ -254,17 +259,24 @@ def makeResults(date):
 			table = "==List==\n<!-- Changes made to this section will be overwritten on the next update. Do not change the name of this section. -->"
 			table += "\nPeriod: "+str(year)+"-"+str(month)+"-01 &mdash; "+str(year)+"-"+str(month)+"-"+str(numdays)+" (UTC)\n\n"
 			table += '{| class="wikitable sortable" style="text-align: right;"\n'
-		table+= '! Rank\n! Page\n! Views\n! Views (per day average)\n! Assessment\n'
-		query = "SELECT title, hits, project_assess FROM `"+table+"` WHERE project_assess LIKE \"%'"+project+"'%\" ORDER BY hits DESC LIMIT 1000"
+		query = "SELECT title, hits, project_assess FROM `"+table+"` WHERE project_assess LIKE \"%'"+proj+"':%\" ORDER BY hits DESC LIMIT "+limit
 		cursor.execute(query)
 		result = cursor.fetchall()
+		test = result[0][2]
+		exec 'imprt_test = {'+test+'}'
+		useImportance = True
+		if imprt_test[project][1] is None:
+			useImportance = False
+		table+= '! Rank\n! Page\n! Views\n! Views (per day average)\n! Assessment\n'
+		if useImportance:
+			table+= '! Importance\n'
 		rank = 0
 		for record in result:
 			rank+=1
 			hits = locale.format("%.*f", (0,record[1]), True)
 			avg = locale.format("%.*f", (0, record[1]/numdays ), True)					
-			exec 'project_assess = {'+record[2]+'}'					
-			assess = project_assess[project]
+			exec 'project_assess = {'+record[2]+'}'
+			assess = project_assess[project][0]
 			template = articletypes[assess]
 			table+= "|-\n"
 			table+= "| " + locale.format("%.*f", (0,rank), True) + "\n"
@@ -272,28 +284,32 @@ def makeResults(date):
 			table+= "| " + hits + "\n"
 			table+= "| " + avg + "\n"
 			table+= "| " + template + "\n"
+			if useImportance:
+				imp = project_assess[project][1]
+				tem = importancetemplates[imp]
+				table+= "| " + tem + "\n"
 			if rank/100 == rank/100.0:
 				logMsg( rank)
 		table += "|}"
-		res = target.edit(newtext=table, summary="Popularity stats for "+projectlist[project][0]+" project", section=str(section))
+		res = target.edit(newtext=table, summary="Popularity stats for "+projects[proj].name, section=str(section))
 		if 'new' in res['edit']:
-			notifyProject(target)
+			notifyProject(projects[proj].name, projects[proj].listpage)
 			
-def notifyProject(p):
-	project = p.title.rsplit('/', 1)[0]
-	project = page.Page(site, project)
-	talk = project.toggleTalk()
-	text = '\n{{subst:User:Mr.Z-man/np|%s}}' % p.title
+def notifyProject(proj, listpage):
+	p = page.Page(site, proj)
+	talk = proj.toggleTalk()
+	text = '\n{{subst:User:Mr.Z-man/np|%s|%s}}' % (p.title, listpage)
 	summary = '/* Pageview stats */ new section'
 	talk.edit(appendtext=text, summary=summary)
 	
 def setup():
 	os.chdir('/home/alexz/popularity/')
-	projectlist = projectlister.projects
+	lister = pl.ProjectLister()
+	projectlist = lister.projects
 	makeTempTables()
 	for project in projectlist.keys():
 		abbrv = project
-		name = projectlist[project][0]
+		name = projectlist[project].cat_name
 		setupProject(name, abbrv)
 	addRedirects()
 	makeDataPages()
@@ -333,10 +349,14 @@ def setupProject(project, abbrv):
 	db = MySQLdb.connect(host="sql-s1", read_default_file="/home/alexz/.my.cnf")
 	cursor = db.cursor()
 	projecthashes = set()
+	project = project.replace(' ', '_')
 	types = ['FA', 'FL', 'A', 'GA', 'B', 'C', 'start', 'stub', 'list', 'image', 'portal', 'category', 'disambig', 'template', 'unassessed', 'blank', 'non-article']
 	insertquery = 'INSERT INTO u_alexz.'+table+' (title, hash, project_assess) VALUES( %s, %s, %s )'
 	updatequery = 'UPDATE u_alexz.'+table+' SET project_assess=CONCAT(project_assess,",",%s) WHERE hash=%s'
-	selectquery = 'SELECT page_namespace,page_title FROM enwiki_p.page JOIN enwiki_p.categorylinks ON page_id=cl_from WHERE cl_to=%s'
+	selectquery = """SELECT page_namespace-1, page_title, SUBSTRING_INDEX(clB.cl_to, '-', 1) FROM enwiki_p.page 
+		JOIN enwiki_p.categorylinks AS clA ON page_id=clA.cl_from 
+		LEFT JOIN enwiki_p.categorylinks AS clB ON page_id=clB.cl_from AND clB.cl_to LIKE "%-importance_"""+project+"""_articles"
+		WHERE clA.cl_to=%s """
 	for type in types:
 		if type == "unassessed":
 			cat = "Category:Unassessed "+project+" articles"
@@ -358,10 +378,16 @@ def setupProject(project, abbrv):
 			if not title[0]%2 == 1:
 				continue
 			realtitle = title[1].decode('utf8').encode('utf8')
+			if title[0] != 0:
+				p = page.Page(site, realtitle, check=False, namespace=title[0])
+				realtitle = p.title.encode('utf8')
 			hashmd5 = hashlib.md5(realtitle).hexdigest()
 			if hashmd5 in projecthashes:
 				continue
-			project_assess = "'%s':'%s'" % (abbrv, type)
+			if title[2] is None:
+				project_assess = "'%s':('%s',None)" % (abbrv, type)
+			else:
+				project_assess = "'%s':('%s','%s')" % (abbrv, type, title[2])
 			if hashmd5 in hashlist:
 				bits = (project_assess, hashmd5)
 				cursor.execute(updatequery, bits)
