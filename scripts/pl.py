@@ -8,7 +8,7 @@ class ProjectLister(object):
 	
 	def __init__(self):
 		db = MySQLdb.connect(host="sql", read_default_file="/home/alexz/.my.cnf", db='u_alexz')
-		cursor = self.db.cursor()
+		cursor = db.cursor()
 		cursor.execute('SELECT * FROM project_config')
 		res = cursor.fetchall()
 		self.projects = {}
