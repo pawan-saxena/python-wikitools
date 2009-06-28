@@ -5,14 +5,39 @@ import cPickle as pickle
 import datetime
 import urllib
 import httplib
-import gzip
 import hashlib
 import MySQLdb
 import sys
-import pl
 from wikitools import wiki, page
 import settings
 import calendar
+import subprocess
+import time
+
+class ProjectLister(object):
+
+	__slots__ = ('projects')
+	
+	def __init__(self):
+		db = MySQLdb.connect(host="sql", read_default_file="/home/alexz/.my.cnf", db='u_alexz')
+		cursor = db.cursor()
+		cursor.execute('SELECT * FROM project_config')
+		res = cursor.fetchall()
+		self.projects = {}
+		for item in res:
+			self.projects[item[0]] = Project(item)
+		db.close()
+			
+class Project(object):
+
+	__slots__ = ('abbrv', 'name', 'cat_name', 'listpage', 'limit')
+
+	def __init__(self, row):
+		self.abbrv = row[0]
+		self.name = row[1]
+		self.cat_name = row[2]
+		self.listpage = row[3]
+		self.limit = row[4]
 
 articletypes = {'unassessed':'{{unassessed-Class}}', 'file':'{{File-Class}}',
 	'template':'{{template-Class}}', 'category':'{{category-Class}}', 'disambig':'{{disambig-Class}}',
@@ -25,44 +50,12 @@ importancetemplates = {'Top':'{{Top-importance}}', 'High':'{{High-importance}}',
 	'Low':'{{Low-importance}}', 'Bottom':'{{Bottom-importance}}', 'No':'{{No-importance}}', 'NA':'{{NA-importance}}',
 	'Unknown':'{{-importance}}' }
 	
-class HitsDict():
-	def __init__(self, args={}):
-		self.vals = []
-		self.keydict = {}
-		
-	def setkeypair(self, curkey, newkey):
-		if not curkey in self.keydict:
-			return
-		self.keydict[newkey] = self.keydict[curkey]
-		
-	def __getitem__(self, key):
-		return self.vals[self.keydict[key]]
-	
-	def __setitem__(self, key, value):
-		if key in self.keydict:
-			self.vals[self.keydict[key]] = value
-		else:
-			self.vals.append(value)
-			self.keydict[key] = len(self.vals)-1
-		
-	def __delitem__(self, key):
-		return NotImplemented
-	
-	def __contains__(self, key):
-		return key in self.keydict
-	
-	def keys(self):
-		return self.keydict.keys()
-		
-	def values(self):
-		return self.keydict.keys()	
-
 # Manual run options:
 # * --setup - runs setup
 # * --make-tables - makes the result tables and saves them to the wiki
 # * --manual=page - manually run the given datapage
 	
-hitcount = HitsDict()
+hitcount = {}
 site = wiki.Wiki()
 site.login(settings.bot, settings.botpass)
 
@@ -77,24 +70,9 @@ def main():
 			dt = datetime.datetime.strptime(manualfile, 'pagecounts-%Y%m%d-%H0000.gz')
 		except:
 			dt = datetime.datetime.strptime(manualfile, 'pagecounts-%Y%m%d-%H0001.gz')
-		dp = dt.strftime('%b%y')
 	now = datetime.datetime.utcnow()
 	now = now.replace(minute = 0, second=0, microsecond=0)
 	todo = (now - datetime.timedelta(hours=1))
-	if not manual:
-		dp = todo.strftime('%b%y')
-	p = open('pages/%s.dat' % dp, 'r')
-	pages = pickle.load(p)
-	p.close()
-	for item in pages:
-		hitcount[item] = 0
-	del pages
-	r = open('redirects/%s.dat' % dp, 'r')
-	redirects = pickle.load(r)
-	r.close()
-	for item in redirects.keys():
-		hitcount.setkeypair(redirects[item], item)
-	del redirects
 	if manual:
 		processPage(manualfile)
 		addResults(dt)
@@ -119,22 +97,21 @@ def main():
 		makeResults(todo)
 
 def processPage(filename):	
-	started = False
-	hashlist = set(hitcount.keys())
-	datapage = gzip.open(filename, 'rb')
-	for line in datapage:
-		if not line or not line.startswith('en '):
-			if started:
+	 proc = subprocess.Popen(['/home/alexz/scripts/processpage', filename, 'pagelist', 'redirs'], stdout=subprocess.PIPE)
+	 out = proc.stdout
+	 while True:
+		line = out.readline()
+		if not line:
+			if proc.poll() is not None:
 				break
 			else:
+				time.sleep(0.1)
 				continue
-		started = True
-		bits = line.split(' ')		
-		key = hashlib.md5(urllib.unquote(bits[1]).replace(' ', '_')).hexdigest()
-		if key in hashlist:
-			hitcount[key] += int(bits[2])
-	datapage.close()
-	#os.remove(filename)
+		(hash, hits) = line.rstrip('\n').split(' - ', 1)
+		if hash in hitcount:
+			hitcount[hash] += int(hits)		
+		else:
+			hitcount[hash] = int(hits)
 	
 def handleMissedRun(cur, last):
 	if cur.month != last.month:
@@ -193,15 +170,11 @@ def addResults(date):
 	c.execute("SET autocommit=0")
 	table = date.strftime('pop_%b%y')
 	hits = {}
-	dp = date.strftime('%b%y')
-	p = open('pages/%s.dat' % dp, 'r')
-	pages = pickle.load(p)
-	p.close()
 	c.execute("START TRANSACTION")
-	for hash in pages:
+	for hash in hitcount:
 		hc = hitcount[hash]
 		if hc == 0:
-			continue
+			continue 
 		if hc in hits:
 			hits[hc].append(hash)
 		else:
@@ -232,7 +205,7 @@ def unlock():
 	lock.close()
 	
 def makeResults(date):
-	lister = pl.ProjectLister()
+	lister = ProjectLister()
 	projects = lister.projects
 	month = date.month
 	year = date.year
@@ -241,12 +214,12 @@ def makeResults(date):
 	db = MySQLdb.connect(host="sql", db='u_alexz', read_default_file="/home/alexz/.my.cnf")
 	cursor = db.cursor()
 	for proj in projects.keys():
-		target = page.Page(site, projects[proj].listpage)
+		target = page.Page(site, projects[proj].listpage, namespace=4)
 		section = 0
 		if target.exists:
 			section = 1
 		limit = projects[proj].limit
-		header = "This is a list of the top 1000 (or all) pages ordered by number of views in the scope of the "+projects[proj].name+".\n\n"
+		header = "This is a list of the top 1000 (or all) pages ordered by number of views in the scope of "+projects[proj].name+".\n\n"
 		header += "The data comes from data published by [[User:Midom|Domas Mituzas]] from Wikipedia's [[Squid (software)|squid]] server logs. "
 		header += "Note that due to the use of a different program than http://stats.grok.se/ the numbers here may differ from that site. For more information, "
 		header += "or for a copy of the full data for all pages, leave a message on [[User talk:Mr.Z-man|this talk page]].\n\n"
@@ -296,15 +269,15 @@ def makeResults(date):
 			notifyProject(projects[proj].name, projects[proj].listpage)
 			
 def notifyProject(proj, listpage):
-	p = page.Page(site, proj)
+	p = page.Page(site, proj, namespace=4)
 	talk = proj.toggleTalk()
-	text = '\n{{subst:User:Mr.Z-man/np|%s|%s}}' % (p.title, listpage)
+	text = '\n{{subst:User:Mr.Z-man/np|%s|%s}}' % (proj, listpage)
 	summary = '/* Pageview stats */ new section'
 	talk.edit(appendtext=text, summary=summary)
 	
 def setup():
 	os.chdir('/home/alexz/popularity/')
-	lister = pl.ProjectLister()
+	lister = ProjectLister()
 	projectlist = lister.projects
 	makeTempTables()
 	for project in projectlist.keys():
@@ -320,8 +293,14 @@ def makeTempTables():
 	table = date.strftime('pop_%b%y')
 	db = MySQLdb.connect(host="sql-s1", db='u_alexz', read_default_file="/home/alexz/.my.cnf")
 	cursor = db.cursor()
-	cursor.execute("DROP TABLE %s" % table)
-	cursor.execute("DROP TABLE redirect_map")
+	try:
+		cursor.execute("DROP TABLE %s" % table)
+	except:
+		pass
+	try:
+		cursor.execute("DROP TABLE redirect_map")
+	except:
+		pass
 	query1 = """CREATE TABLE `%s` (
 		`title` varchar(255) collate latin1_bin NOT NULL,
 		`hash` varchar(32) NOT NULL,
@@ -355,7 +334,7 @@ def setupProject(project, abbrv):
 	updatequery = 'UPDATE u_alexz.'+table+' SET project_assess=CONCAT(project_assess,",",%s) WHERE hash=%s'
 	selectquery = """SELECT page_namespace-1, page_title, SUBSTRING_INDEX(clB.cl_to, '-', 1) FROM enwiki_p.page 
 		JOIN enwiki_p.categorylinks AS clA ON page_id=clA.cl_from 
-		LEFT JOIN enwiki_p.categorylinks AS clB ON page_id=clB.cl_from AND clB.cl_to LIKE "%-importance_"""+project+"""_articles"
+		LEFT JOIN enwiki_p.categorylinks AS clB ON page_id=clB.cl_from AND clB.cl_to LIKE "%%-importance_"""+project+"""_articles"
 		WHERE clA.cl_to=%s """
 	for type in types:
 		if type == "unassessed":
@@ -375,7 +354,7 @@ def setupProject(project, abbrv):
 		pagesincat = cursor.fetchall()
 		cursor.execute("START TRANSACTION")
 		for title in pagesincat:			
-			if not title[0]%2 == 1:
+			if not title[0]%2 == 0:
 				continue
 			realtitle = title[1].decode('utf8').encode('utf8')
 			if title[0] != 0:
@@ -405,7 +384,7 @@ def addRedirects():
 	cursor = db.cursor()
 	date = datetime.datetime.utcnow()+datetime.timedelta(days=15)	
 	table = date.strftime('pop_%b%y')
-	query = """INSERT INTO u_alexz.redirect_map (rd_hash, target_hash)
+	query = """INSERT IGNORE INTO u_alexz.redirect_map (rd_hash, target_hash)
 		SELECT DISTINCT(MD5(enwiki_p.page.page_title)), u_alexz.%(table)s.hash
 		FROM u_alexz.%(table)s
 		INNER JOIN (enwiki_p.redirect, enwiki_p.page)
@@ -421,30 +400,25 @@ def makeDataPages():
 	table = date.strftime('pop_%b%y')
 	db = MySQLdb.connect(host="sql-s1", db='u_alexz', read_default_file="/home/alexz/.my.cnf")
 	cursor = db.cursor()
-	dp = date.strftime('%b%y.dat')
-	pages = set()
+	os.remove('pagelist')
+	f = open('pagelist', 'ab')
 	cursor.execute('SELECT DISTINCT hash FROM '+table)
 	while True:
 		p = cursor.fetchone()
 		if p:
-			pages.add(p[0])
+			f.write(p[0]+"\n")
 		else:
 			break
-	f = open('pages/'+dp, 'wb')
-	pickle.dump(pages, f, pickle.HIGHEST_PROTOCOL)
-	del pages
 	f.close()
-	rds = {}
 	cursor.execute('SELECT DISTINCT rd_hash, target_hash FROM redirect_map')
+	os.remove('redirs')
+	f = open('redirs', 'ab')
 	while True:
 		row = cursor.fetchone()
 		if row:
-			rds[row[0]] = row[1]
+			f.write('%s=%s\n' % (row[0], row[1]))
 		else:
 			break
-	f = open('redirects/'+dp, 'wb')
-	pickle.dump(rds, f, pickle.HIGHEST_PROTOCOL)
-	del rds
 	f.close()
 	
 def moveTables():
