@@ -46,29 +46,6 @@ int main ( int argc, char * argv[] ) {
 		free(line);
 	}
 	fclose( redirlist );
-	
-	
-	char *thing;
-	thing = argv[1];
-	res = g_hash_table_lookup( table, thing );
-	if (res == NULL) {
-		printf("Not in list\n");
-	} else if (res != "") {
-		printf("%s\n", res);
-	} else {
-		printf("In list\n");
-	}
-	res = g_hash_table_lookup( table, thing );
-	if (res == NULL) {
-		printf("Not in list\n");
-	} else if (res != "") {
-		printf("%s\n", res);
-	} else {
-		printf("In list\n");
-	}
-	return 1;
-	
-	
 	gzFile datafile;
 	datafile = gzopen( argv[1], "r" );
 	while(1) {
