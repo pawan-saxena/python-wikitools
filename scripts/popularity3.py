@@ -70,9 +70,8 @@ def main():
 			dt = datetime.datetime.strptime(manualfile, 'pagecounts-%Y%m%d-%H0000.gz')
 		except:
 			dt = datetime.datetime.strptime(manualfile, 'pagecounts-%Y%m%d-%H0001.gz')
-	now = datetime.datetime.utcnow()
-	now = now.replace(minute = 0, second=0, microsecond=0)
-	todo = (now - datetime.timedelta(hours=1))
+	todo = datetime.datetime.utcnow()
+	todo = now.replace(minute = 0, second=0, microsecond=0)
 	if manual:
 		processPage(manualfile)
 		addResults(dt)
@@ -93,10 +92,10 @@ def main():
 	l.close()
 	unlock()
 	next = todo + datetime.timedelta(hours=1)
-	if next.month != todo.month:
+	if next.day == 1 and next.hour == 1:
 		makeResults(todo)
 
-def processPage(filename):	
+def processPage(filename):
 	 proc = subprocess.Popen(['/home/alexz/scripts/processpage', filename, 'pagelist', 'redirs'], stdout=subprocess.PIPE)
 	 out = proc.stdout
 	 while True:
@@ -168,6 +167,8 @@ def addResults(date):
 	db = MySQLdb.connect(host="sql", read_default_file="/home/alexz/.my.cnf", db='u_alexz')
 	c = db.cursor()
 	c.execute("SET autocommit=0")
+	if date.day == 1 and date.hour == 0:
+		date = date-datetime.timedelta(hours=1)
 	table = date.strftime('pop_%b%y')
 	hits = {}
 	c.execute("START TRANSACTION")
