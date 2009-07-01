@@ -438,9 +438,9 @@ def moveTables():
 	cursor.execute('COMMIT')	
 		
 if __name__ == '__main__':
-	if len(sys.argv[1]) > 1 and sys.argv[1] == '--setup':
+	if len(sys.argv) > 1 and sys.argv[1] == '--setup':
 		setup()
-	elif len(sys.argv[1]) > 1 and sys.argv[1] == '--make-tables':
+	elif len(sys.argv) > 1 and sys.argv[1] == '--make-tables':
 		month = int(raw_input('Month: '))
 		year = int(raw_input('Year: '))
 		d = datetime.datetime(month=month, year=year, day=1)
