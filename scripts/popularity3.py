@@ -96,9 +96,9 @@ def main():
 		makeResults(todo)
 
 def processPage(filename):
-	 proc = subprocess.Popen(['/home/alexz/scripts/processpage', filename, 'pagelist', 'redirs'], stdout=subprocess.PIPE)
-	 out = proc.stdout
-	 while True:
+	proc = subprocess.Popen(['/home/alexz/scripts/processpage', filename, 'pagelist', 'redirs'], stdout=subprocess.PIPE)
+	out = proc.stdout
+	while True:
 		line = out.readline()
 		if not line:
 			if proc.poll() is not None:
