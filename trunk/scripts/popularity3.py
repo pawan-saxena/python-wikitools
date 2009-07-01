@@ -71,7 +71,7 @@ def main():
 		except:
 			dt = datetime.datetime.strptime(manualfile, 'pagecounts-%Y%m%d-%H0001.gz')
 	todo = datetime.datetime.utcnow()
-	todo = now.replace(minute = 0, second=0, microsecond=0)
+	todo = todo.replace(minute = 0, second=0, microsecond=0)
 	if manual:
 		processPage(manualfile)
 		addResults(dt)
