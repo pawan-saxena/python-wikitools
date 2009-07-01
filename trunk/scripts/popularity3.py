@@ -111,6 +111,7 @@ def processPage(filename):
 			hitcount[hash] += int(hits)		
 		else:
 			hitcount[hash] = int(hits)
+	os.remove(filename)
 	
 def handleMissedRun(cur, last):
 	if cur.month != last.month:
