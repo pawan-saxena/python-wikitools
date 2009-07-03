@@ -63,7 +63,7 @@ def main():
 	os.chdir('/home/alexz/popularity/')
 	lock()
 	manual = False
-	if len(sys.argv[1]) > 1 and sys.argv[1].startswith('--manual'):
+	if len(sys.argv) > 1 and sys.argv[1].startswith('--manual'):
 		manual = True
 		manualfile = sys.argv[1].split('=')[1]
 		try:
@@ -114,6 +114,7 @@ def processPage(filename):
 	os.remove(filename)
 	
 def handleMissedRun(cur, last):
+	print "Run missed"
 	if cur.month != last.month:
 		raise Exception("Missed runs span across months, do it manually!")
 	hours = (cur-last).seconds/3600
@@ -122,6 +123,7 @@ def handleMissedRun(cur, last):
 	for x in range(0, hours):
 		date = cur - datetime.timedelta(hours=x)
 		files.append(getFile(date))
+	print repr(files)
 	return files
 	
 def getFile(date):
