@@ -442,6 +442,11 @@ def moveTables():
 	cursor.execute('DROP TABLE '+table)
 	cursor.execute('DROP TABLE redirect_map')
 	cursor.execute('COMMIT')	
+	db2 = MySQLdb.connect(host="sql", db='u_alexz', read_default_file="/home/alexz/.my.cnf")
+	c2 = db2.cursor()
+	c2.execute('START TRANSACTION')
+	c2.execute('ALTER TABLE '+table+' DROP INDEX title')
+	c2.execute('COMMIT')
 		
 if __name__ == '__main__':
 	if len(sys.argv) > 1 and sys.argv[1] == '--setup':
