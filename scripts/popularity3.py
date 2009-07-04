@@ -129,7 +129,7 @@ def handleMissedRun(cur, last):
 def getFile(date):
 	page = date.strftime('pagecounts-%Y%m%d-%H0000.gz')
 	altpage = date.strftime('pagecounts-%Y%m%d-%H0001.gz')
-	url = "http://dammit.lt"
+	url = "http://mituzas.lt"
 	main = "/wikistats/"
 	archive = "/wikistats/archive/%d/%s/" % (date.year, str(date.month).zfill(2))
 	if checkExist(main+page):
@@ -150,14 +150,14 @@ def getFile(date):
 	return filename
 		
 def checkExist(testurl):
-	conn = httplib.HTTPConnection('dammit.lt')
+	conn = httplib.HTTPConnection('mituzas.lt')
 	conn.request('HEAD', testurl)
 	r = conn.getresponse()
 	if r.status == 404 or r.status == 500:
 		conn.close()
 		return False
 	else:
-		cl = int(r.getheader('Content-length'))
+		cl = int(r.getheader('content-length'))
 		if cl < 26214400: #25 MB
 			return False
 		conn.close()
