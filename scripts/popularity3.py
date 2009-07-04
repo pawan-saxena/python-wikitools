@@ -157,6 +157,9 @@ def checkExist(testurl):
 		conn.close()
 		return False
 	else:
+		cl = int(r.getheader('Content-length'))
+		if cl < 26214400: #25 MB
+			return False
 		conn.close()
 		return True
 		
