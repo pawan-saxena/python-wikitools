@@ -30,7 +30,7 @@ class ProjectLister(object):
 			
 class Project(object):
 
-	__slots__ = ('abbrv', 'name', 'cat_name', 'listpage', 'limit')
+	__slots__ = ('abbrv', 'name', 'cat_name', 'listpage', 'limit', 'month_added')
 
 	def __init__(self, row):
 		self.abbrv = row[0]
@@ -38,6 +38,7 @@ class Project(object):
 		self.cat_name = row[2]
 		self.listpage = row[3]
 		self.limit = row[4]
+		self.month_added = row[5]
 
 articletypes = {'unassessed':'{{unassessed-Class}}', 'file':'{{File-Class}}',
 	'template':'{{template-Class}}', 'category':'{{category-Class}}', 'disambig':'{{disambig-Class}}',
@@ -93,7 +94,7 @@ def main():
 	unlock()
 	next = todo + datetime.timedelta(hours=1)
 	if next.day == 1 and next.hour == 1:
-		makeResults(todo)
+		makeResults()
 
 def processPage(filename):
 	proc = subprocess.Popen(['/home/alexz/scripts/processpage', filename, 'pagelist', 'redirs'], stdout=subprocess.PIPE)
@@ -211,9 +212,13 @@ def unlock():
 	lock.write('0')
 	lock.close()
 	
-def makeResults(date):
+def makeResults(date=None):
 	lister = ProjectLister()
 	projects = lister.projects
+	if not date:
+		date = datetime.date.today()
+		date = date-datetime.timedelta(days=20)
+		date = date.replace(day=1)
 	month = date.month
 	year = date.year
 	numdays = calendar.monthrange(year, month)[1]
@@ -221,6 +226,9 @@ def makeResults(date):
 	db = MySQLdb.connect(host="sql", db='u_alexz', read_default_file="/home/alexz/.my.cnf")
 	cursor = db.cursor()
 	for proj in projects.keys():
+		diff = projects[proj].month_added - date
+		if diff.days > 0: # The project was added after we started collecting data for this month
+			continue
 		target = page.Page(site, projects[proj].listpage, namespace=4)
 		section = 0
 		if target.exists:
@@ -454,7 +462,7 @@ if __name__ == '__main__':
 	elif len(sys.argv) > 1 and sys.argv[1] == '--make-tables':
 		month = int(raw_input('Month: '))
 		year = int(raw_input('Year: '))
-		d = datetime.datetime(month=month, year=year, day=1)
+		d = datetime.date(month=month, year=year, day=1)
 		makeResults(d)
 	else:
 		main()
