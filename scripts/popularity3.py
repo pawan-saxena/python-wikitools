@@ -178,7 +178,6 @@ def addResults(date):
 		date = date-datetime.timedelta(hours=1)
 	table = date.strftime('pop_%b%y')
 	hits = {}
-	c.execute("START TRANSACTION")
 	for hash in hitcount:
 		hc = hitcount[hash]
 		if hc == 0:
@@ -194,7 +193,6 @@ def addResults(date):
 			doQuery(hashes)
 			del hits[group][0:1000]
 		doQuery(hits[group])
-	c.execute("COMMIT")
 	db.close()
 	
 def lock():
@@ -247,7 +245,7 @@ def makeResults(date=None):
 			table = "==List==\n<!-- Changes made to this section will be overwritten on the next update. Do not change the name of this section. -->"
 			table += "\nPeriod: "+str(year)+"-"+str(month)+"-01 &mdash; "+str(year)+"-"+str(month)+"-"+str(numdays)+" (UTC)\n\n"
 			table += '{| class="wikitable sortable" style="text-align: right;"\n'
-		query = "SELECT title, hits, project_assess FROM `"+table+"` WHERE project_assess LIKE \"%'"+proj+"':%\" ORDER BY hits DESC LIMIT "+limit
+		query = "SELECT title, hits, project_assess FROM `"+table+"` WHERE MATCH(project_assess) AGAINST (\"'"+proj+"':\") ORDER BY hits DESC LIMIT "+limit
 		cursor.execute(query)
 		result = cursor.fetchall()
 		test = result[0][2]
@@ -316,15 +314,17 @@ def makeTempTables():
 		cursor.execute("DROP TABLE redirect_map")
 	except:
 		pass
+		
 	query1 = """CREATE TABLE `%s` (
 		`title` varchar(255) collate latin1_bin NOT NULL,
 		`hash` varchar(32) NOT NULL,
-		`hits` int(10) NOT NULL default '0',
-		`project_assess` blob NOT NULL,
+		`hits` int(10) NOT NULL DEFAULT '0',
+		`project_assess` text NOT NULL,
 		UNIQUE KEY `title` (`title`),
 		UNIQUE KEY `hash` (`hash`),
-		KEY `project_asssess_hits` (`hits`,`project_assess`(767))
-		) ENGINE=InnoDB ROW_FORMAT=DYNAMIC;""" % (table)
+		KEY `hits` (`hits`),
+		FULLTEXT KEY `project_asssess` (`project_assess`)
+		) ENGINE=MyISAM ROW_FORMAT=DYNAMIC""" % (table)
 	query2 = """CREATE TABLE `redirect_map` (
 		`target_hash` varchar(32) NOT NULL,
 		`rd_hash` varchar(32) NOT NULL,
@@ -367,7 +367,6 @@ def setupProject(project, abbrv):
 		catname = catpage.title.replace(' ', '_')
 		cursor.execute(selectquery, (catname))
 		pagesincat = cursor.fetchall()
-		cursor.execute("START TRANSACTION")
 		for title in pagesincat:			
 			if not title[0]%2 == 0:
 				continue
@@ -390,7 +389,6 @@ def setupProject(project, abbrv):
 				projecthashes.add(hashmd5)			
 				bits = (realtitle, hashmd5, project_assess)
 				cursor.execute(insertquery, bits)	
-		cursor.execute("COMMIT")
 	del projecthashes
 	db.close()
 	
@@ -452,9 +450,7 @@ def moveTables():
 	cursor.execute('COMMIT')	
 	db2 = MySQLdb.connect(host="sql", db='u_alexz', read_default_file="/home/alexz/.my.cnf")
 	c2 = db2.cursor()
-	c2.execute('START TRANSACTION')
 	c2.execute('ALTER TABLE '+table+' DROP INDEX title')
-	c2.execute('COMMIT')
 		
 if __name__ == '__main__':
 	if len(sys.argv) > 1 and sys.argv[1] == '--setup':
