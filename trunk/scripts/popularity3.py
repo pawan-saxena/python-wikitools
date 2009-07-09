@@ -249,7 +249,7 @@ def makeResults(date=None):
 		cursor.execute(query)
 		result = cursor.fetchall()
 		test = result[0][2]
-		exec 'imprt_test = {'+test+'}'
+		imprt_test = eval('{'+test+'}')
 		useImportance = True
 		if imprt_test[project][1] is None:
 			useImportance = False
@@ -261,7 +261,7 @@ def makeResults(date=None):
 			rank+=1
 			hits = locale.format("%.*f", (0,record[1]), True)
 			avg = locale.format("%.*f", (0, record[1]/numdays ), True)					
-			exec 'project_assess = {'+record[2]+'}'
+			project_assess = eval('{'+record[2]+'}')
 			assess = project_assess[project][0]
 			template = articletypes[assess]
 			table+= "|-\n"
