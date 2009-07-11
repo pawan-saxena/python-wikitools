@@ -57,8 +57,6 @@ importancetemplates = {'Top':'{{Top-importance}}', 'High':'{{High-importance}}',
 # * --manual=page - manually run the given datapage
 	
 hitcount = {}
-site = wiki.Wiki()
-site.login(settings.bot, settings.botpass)
 
 def main():
 	os.chdir('/home/alexz/popularity/')
@@ -211,6 +209,8 @@ def unlock():
 	lock.close()
 	
 def makeResults(date=None):
+	site = wiki.Wiki()
+	site.login(settings.bot, settings.botpass)
 	lister = ProjectLister()
 	projects = lister.projects
 	if not date:
@@ -279,9 +279,9 @@ def makeResults(date=None):
 		table += "|}"
 		res = target.edit(newtext=table, summary="Popularity stats for "+projects[proj].name, section=str(section))
 		if 'new' in res['edit']:
-			notifyProject(projects[proj].name, projects[proj].listpage)
+			notifyProject(projects[proj].name, projects[proj].listpage, site)
 			
-def notifyProject(proj, listpage):
+def notifyProject(proj, listpage, site):
 	p = page.Page(site, proj, namespace=4)
 	talk = proj.toggleTalk()
 	text = '\n{{subst:User:Mr.Z-man/np|%s|%s}}' % (proj, listpage)
