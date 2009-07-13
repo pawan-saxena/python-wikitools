@@ -194,19 +194,19 @@ def addResults(date):
 	db.close()
 	
 def lock():
-	lock = open('pop.lock', 'r')
-	l = lock.readline().split('\n')[0]
+	f = open('pop.lock', 'r')
+	l = f.readline().split('\n')[0]
 	if l != '0':
 		os.system('ps -Fp '+l)
 		raise Exception("Other process still running")
-	lock = open('pop.lock', 'w')
-	lock.write(str(os.getpid()))
-	lock.close()
+	f = open('pop.lock', 'w')
+	f.write(str(os.getpid()))
+	f.close()
 	
 def unlock():	
-	lock = open('pop.lock', 'w')
-	lock.write('0')
-	lock.close()
+	f = open('pop.lock', 'w')
+	f.write('0')
+	f.close()
 	
 def makeResults(date=None):
 	site = wiki.Wiki()

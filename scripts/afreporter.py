@@ -11,6 +11,7 @@ import urllib
 import os
 import traceback
 import re
+import datetime
 try:
 	import json
 except:
@@ -19,7 +20,7 @@ except:
 connections = {}
 
 site = wiki.Wiki()
-site.setMaxlag(120)
+site.setMaxlag(-1)
 site.login(settings.bot, settings.botpass)
 AIV = page.Page(site, 'Wikipedia:Administrator intervention against vandalism/TB2')
 
@@ -108,9 +109,120 @@ def sendToChannel(msg):
 	f.write(msg+"\n")
 	f.close()
 	connections['command'].privmsg("#wikipedia-en-abuse-log", msg)
-		
+	print msg
+	
 immediate = set() 
 vandalism = set()
+useAPI = False
+
+def checklag():
+	global connections, useAPI
+	f = open('/home/alexz/messages', 'ab')
+	f.write("Checking lag\n")
+	f.close()
+	waited = False
+	res = False	
+	while True:
+		# Check toolserver replag
+		while not res:
+			try:
+				r = urllib.urlopen('http://toolserver.org/~soxred93/api.php?action=replag&format=json')
+				res = json.loads(r.read())
+			except:
+				pass
+		replag = res['s1']
+		res = False
+		# Fallback to API if replag is too high
+		if replag > 300 and not useAPI:
+			useAPI = True
+			sendToChannel("Toolserver replag too high, using API fallback")
+		if replag < 120 and useAPI:
+			sendToChannel("Using Toolserver database")
+			useAPI = False
+		# Check maxlag if we're using the API
+		if useAPI:
+			params = {'action':'query',
+				'meta':'siteinfo',
+				'siprop':'dbrepllag'
+			}
+			req = api.APIRequest(site, params)
+			res = req.query()
+			maxlag = res['query']['dbrepllag'][0]['lag']
+			# If maxlag is too high, just stop
+			if maxlag > 600 and not waited:
+				waited = True
+				sendToChannel("Server lag too high, stopping reports")
+			if waited and maxlag > 120:
+				time.sleep(120)
+				continue
+		break			
+	if waited:
+		sendToChannel("Restarting reports")
+		return True
+	return False
+
+db = MySQLdb.connect(db='enwiki_p', host="sql-s1", read_default_file="/home/alexz/.my.cnf")
+cursor = db.cursor()
+	
+def getStart():
+	cursor.execute('SELECT afl_timestamp, afl_id FROM abuse_filter_log ORDER BY afl_id DESC LIMIT 1')
+	(lasttime, lastid) = cursor.fetchone()
+	return (lasttime, lastid)
+	
+def normTS(ts): # normalize a timestamp to the API format
+	ts = str(ts)
+	if 'Z' in ts:
+		return ts
+	ts = datetime.datetime.strptime(ts, "%Y%m%d%H%M%S")
+	return ts.strftime("%Y-%m-%dT%H:%M:%SZ")
+	
+def logFromAPI(lasttime):
+	lasttime = normTS(lasttime)
+	params = {'action':'query',
+		'list':'abuselog',
+		'aflstart':lasttime,
+		'aflprop':'ids|user|action|title|timestamp',
+		'afllimit':'50',
+		'afldir':'newer',
+	}
+	req = api.APIRequest(site, params)
+	res = req.query()	
+	rows = res['query']['abuselog']
+	del rows[0] # The API uses >=, so the first row will be the same as the last row of the last set
+	ret = []
+	for row in rows:
+		entry = {}
+		entry['l'] = row['id']
+		entry['a'] = row['action']
+		entry['ns'] = row['ns']
+		p = page.Page(site, row['title'], check=False)
+		entry['t'] = p.unprefixedtitle
+		entry['u'] = row['user']
+		entry['ts'] = row['timestamp']
+		entry['f'] = row['filter_id']
+		ret.append(entry)
+	return ret	
+	
+def logFromDB(lastid):
+	query = """SELECT afl_id, afl_action, afl_namespace, afl_title, 
+	afl_user_text, afl_timestamp, afl_filter FROM abuse_filter_log
+	WHERE afl_id>%s ORDER BY afl_id ASC"""
+	cursor.execute(query, lastid)
+	ret = []
+	res = cursor.fetchall()
+	for row in res:
+		entry = {}
+		entry['l'] = row[0]
+		entry['a'] = row[1]
+		entry['ns'] = row[2]
+		p = page.Page(site, row[3], check=False, namespace=row[2])
+		entry['t'] = p.unprefixedtitle
+		entry['u'] = row[4]
+		entry['ts'] = row[5]
+		entry['f'] = row[6]
+		ret.append(entry)
+	return ret	
+	
 def main():
 	global connections
 	getLists()
@@ -130,55 +242,49 @@ def main():
 	f = open('/home/alexz/messages', 'ab')
         f.write("Started\n")
         f.close()
-	replag()
-	repcheck = time.time()
+	checklag()
+	lagcheck = time.time()
 	IRCut = timedTracker() # user tracker for IRC
 	AIVut = timedTracker() # user tracker for AIV
 	IRCreported = timedTracker(expiry=60)
 	AIVreported = timedTracker(expiry=600)
 	titles = timedTracker() # this only reports to IRC for now
-	query = """SELECT afl_user_text,afl_action,afl_id,afl_namespace,afl_title,afl_filter,afl_timestamp
-	FROM abuse_filter_log WHERE afl_id>%s ORDER BY afl_id DESC"""
-	db = MySQLdb.connect(db='enwiki_p', host="sql-s1", read_default_file="/home/alexz/.my.cnf")
-	cursor = db.cursor()
-	cursor.execute('SELECT afl_id FROM abuse_filter_log ORDER BY afl_id DESC LIMIT 1')
-	lastid = cursor.fetchone()[0]
+	(lasttime, lastid) = getStart()
 	while True:
 		if time.time() > listcheck+300:
 			getLists()
 			listcheck = time.time()
-		if time.time() > repcheck+600:
-			rep = replag()
-			repcheck = time.time()
-			if rep:
-				db = MySQLdb.connect(db='enwiki_p', host="sql-s1", read_default_file="/home/alexz/.my.cnf")
-				cursor = db.cursor()
-				cursor.execute('SELECT afl_id FROM abuse_filter_log ORDER BY afl_id DESC LIMIT 1')
-				lastid = cursor.fetchone()[0]
-		cursor.execute(query, lastid)
-		res = cursor.fetchall()
+		if time.time() > lagcheck+600:
+			lag = checklag()
+			lagcheck = time.time()
+			if lag:
+				db.ping()
+				(lasttime, lastid) = getStart()
+		if useAPI:
+			rows = logFromAPI(lasttime)
+		else:
+			rows = logFromDB(lastid)
 		attempts = []
-		for row in res:
-			logid = row[2]
-			# I'm not sure if this is still necessary. Is this actually possible?
+		for row in rows:
+			print row
+			logid = row['l']
 			if logid <= lastid:
 				continue
-			# Set readable-ish var names from query result
-			action = row[1]
-			ns = row[3]
-			t = row[4]
-			filter = row[5]
-			ts = row[6]
-			u = user.User(site, row[0], check=False)
-			username = u.name.encode('utf8')
+			action = row['a']
+			ns = row['ns']
+			title = row['t']
+			filter = row['f']
+			timestamp = row['ts']
+			u = user.User(site, row['u'], check=False)
+			username = u.name.encode('utf8')			
 			# Check against 'immediate' list before doing anything
 			if filter in immediate and not username in AIVreported:
 				reportUser(u, filter=filter, hit=logid)
 				AIVreported[username] = 1
 			# Prevent multiple hits from the same edit attempt
-			if (username, ts) in attempts:
+			if (username, timestamp) in attempts:
 				continue
-			attempts.append((username, ts))
+			attempts.append((username, timestamp))
 			# IRC reporting checks
 			IRCut[username]+=1
 			# 5 hits in 5 mins
@@ -190,21 +296,20 @@ def main():
 				IRCreported[username] = 1
 			# Hits on pagemoves
 			if action == 'move':
-				connections['command'].privmsg("#wikipedia-en-abuse-log", 
+				sendToChannel("#wikipedia-en-abuse-log", 
 				"!alert - [[User:%s]] has tripped a filter doing a pagemove"\
 				": http://en.wikipedia.org/wiki/Special:AbuseLog?details=%s"\
 				%(username, str(logid)))
 			# Frequent hits on one article, would be nice if there was somewhere this could
 			# be reported on-wiki
-			titles[(ns,t)]+=1
-			if titles[(ns,t)] == 10 and not (ns,t) in IRCreported:
-				p = page.Page(site, t, check=False, followRedir=False)
-				p.setNamespace(ns)
+			titles[(ns,title)]+=1
+			if titles[(ns,title)] == 10 and not (ns,title) in IRCreported:
+				p = page.Page(site, title, check=False, followRedir=False, namespace=ns)
 				sendToChannel("!alert - 10 filters in the last 5 minutes have been tripped on [[%s]]: "\
 				"http://en.wikipedia.org/wiki/Special:AbuseLog?wpSearchTitle=%s"\
 				%(p.title.encode('utf8'), p.urltitle))
-				del titles[(ns,t)]
-				IRCreported[(ns,t)] = 1
+				del titles[(ns,title)]
+				IRCreported[(ns,title)] = 1
 			# AIV reporting - check if the filter is in one of the lists
 			if filter not in vandalism.union(immediate):
 				continue
@@ -214,45 +319,23 @@ def main():
 				del AIVut[username]
 				reportUser(u)
 				AIVreported[username] = 1
-		if res:
-			lastid = res[0][2]
+		if rows:
+			rows.reverse()
+			last = rows[0]
+			lastid = last['l']
+			lasttime = last['ts']
 		time.sleep(1.5)
 
-def replag():
-	global connections
-	f = open('/home/alexz/messages', 'ab')
-	f.write("Checking replag\n")
-	f.close()
-	reported = False
-	r = False
-	while True:
-		while not r:
-			try:
-				r = urllib.urlopen('http://toolserver.org/~soxred93/api.php?action=replag&format=json')
-			except IOError:
-				pass
-		res = json.loads(r.read())
-		r = False
-		replag = res['s1']
-		if replag > 300 and not reported:
-			sendToChannel("Toolserver replag too high, stopping reports")
-			reported = True
-		if replag > 120 and reported:
-			time.sleep(300)
-		else:
-			break
-	if reported:
-		sendToChannel("Restarting reports")
-		return True
-	return False
-	
 
 def reportUser(u, filter=None, hit=None):
+	if u.isBlocked():
+		return
 	username = u.name.encode('utf8')
 	if filter:
-		reason = "Tripped [[Special:AbuseFilter/%(f)d|filter %(f)d]] "\
+		name = filterName(filter)
+		reason = "Tripped [[Special:AbuseFilter/%(f)d|filter %(f)d]] (%(n)s) "\
 		"([{{fullurl:Special:AbuseLog|details=%(h)d}} details])."\
-		% {'f':filter, 'h':hit}
+		% {'f':filter, 'n':name, 'h':hit}
 	else:
 		reason = "Tripped 10 abuse filters in the last 5 minutes: "\
 		"([{{fullurl:Special:AbuseLog|wpSearchUser=%s}} details])."\
@@ -265,6 +348,24 @@ def reportUser(u, filter=None, hit=None):
 	line += reason+" ~~~~"
 	AIV.edit(appendtext=line, summary=editsum)
 
+namecache = timedTracker(expiry=86400)
+	
+def filterName(filterid):
+	filterid = str(filterid)
+	if filterid in namecache:
+		return namecache[filterid]
+	params = {'action':'query', 
+		'list':'abusefilters',
+		'abfprop':'description',
+		'abfstartid':filterid,
+		'abflimit':1
+	}
+	req = api.APIRequest(site, params, False)
+	res = req.query()
+	name = res['query']['abusefilters'][0]['description']
+	namecache[filterid] = name
+	return name
+	
 def getLists():
 	f = open('/home/alexz/messages', 'ab')
         f.write("Getting lists\n")
@@ -280,7 +381,7 @@ def getLists():
 			type = type.strip()
 			filters = validateFilterList(filters, type)
 			if not filters:
-				connections['command'].privmsg("#wikipedia-en-abuse-log", 
+				sendToChannel("#wikipedia-en-abuse-log", 
 				"Syntax error detected in filter list page - [[User:Mr.Z-bot/filters.js]]")
 			
 validate = re.compile('^[0-9, ]*?$')
@@ -309,14 +410,4 @@ if __name__ == "__main__":
 		f = open('/home/alexz/afbot.err', 'ab')
 		traceback.print_exc(None, f)
 		f.close()
-		sys.exit()
-	finally:
-		try:
-			os.remove('/home/alexz/phoenix-afbot.out')
-		except:
-			pass
-		try:
-			os.remove('/home/alexz/phoenix-afbot.pid')
-		except:
-			pass
-			
+		sys.exit()			
