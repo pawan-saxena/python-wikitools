@@ -69,13 +69,15 @@ def main():
 			dt = datetime.datetime.strptime(manualfile, 'pagecounts-%Y%m%d-%H0000.gz')
 		except:
 			dt = datetime.datetime.strptime(manualfile, 'pagecounts-%Y%m%d-%H0001.gz')
+		lists = (dt-datetime.timedelta(hours=1)).strftime('.%b%y')
 	todo = datetime.datetime.utcnow()
 	todo = todo.replace(minute = 0, second=0, microsecond=0)
 	if manual:
-		processPage(manualfile)
+		processPage(manualfile, lists)
 		addResults(dt)
 		unlock()
 		return
+	lists = (todo-datetime.timedelta(hours=1)).strftime('.%b%y')
 	l = open('lastrun.dat', 'r')
 	last = pickle.load(l)
 	l.close()
@@ -84,7 +86,7 @@ def main():
 	else:
 		files = [getFile(todo)]
 	for f in files:
-		processPage(f)
+		processPage(f, lists)
 	addResults(todo)
 	l = open('lastrun.dat', 'w')
 	pickle.dump(todo, l, pickle.HIGHEST_PROTOCOL)
@@ -94,8 +96,8 @@ def main():
 	if next.day == 1 and next.hour == 1:
 		makeResults()
 
-def processPage(filename):
-	proc = subprocess.Popen(['/home/alexz/scripts/processpage', filename, 'pagelist', 'redirs'], stdout=subprocess.PIPE)
+def processPage(filename, lists):
+	proc = subprocess.Popen(['/home/alexz/scripts/processpage', filename, 'pagelist'+lists, 'redirs'+lists], stdout=subprocess.PIPE)
 	out = proc.stdout
 	while True:
 		line = out.readline()
@@ -285,8 +287,8 @@ def notifyProject(proj, listpage, site):
 	p = page.Page(site, proj, namespace=4)
 	talk = proj.toggleTalk()
 	text = '\n{{subst:User:Mr.Z-man/np|%s|%s}}' % (proj, listpage)
-	summary = '/* Pageview stats */ new section'
-	talk.edit(appendtext=text, summary=summary)
+	summary = 'Pageview stats'
+	talk.edit(appendtext=text, summary=summary, section='new')
 	
 def setup():
 	os.chdir('/home/alexz/popularity/')
@@ -411,10 +413,10 @@ def addRedirects():
 def makeDataPages():
 	date = datetime.datetime.utcnow()+datetime.timedelta(days=15)	
 	table = date.strftime('pop_%b%y')
+	lists = date.strftime('.%b%y')
 	db = MySQLdb.connect(host="sql-s1", db='u_alexz', read_default_file="/home/alexz/.my.cnf")
 	cursor = db.cursor()
-	os.remove('pagelist')
-	f = open('pagelist', 'ab')
+	f = open('pagelist'+lists, 'ab')
 	cursor.execute('SELECT DISTINCT hash FROM '+table)
 	while True:
 		p = cursor.fetchone()
@@ -424,8 +426,7 @@ def makeDataPages():
 			break
 	f.close()
 	cursor.execute('SELECT DISTINCT rd_hash, target_hash FROM redirect_map')
-	os.remove('redirs')
-	f = open('redirs', 'ab')
+	f = open('redirs'+lists, 'ab')
 	while True:
 		row = cursor.fetchone()
 		if row:
