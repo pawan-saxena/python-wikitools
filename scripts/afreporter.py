@@ -296,8 +296,7 @@ def main():
 				IRCreported[username] = 1
 			# Hits on pagemoves
 			if action == 'move':
-				sendToChannel("#wikipedia-en-abuse-log", 
-				"!alert - [[User:%s]] has tripped a filter doing a pagemove"\
+				sendToChannel("!alert - [[User:%s]] has tripped a filter doing a pagemove"\
 				": http://en.wikipedia.org/wiki/Special:AbuseLog?details=%s"\
 				%(username, str(logid)))
 			# Frequent hits on one article, would be nice if there was somewhere this could
@@ -381,8 +380,7 @@ def getLists():
 			type = type.strip()
 			filters = validateFilterList(filters, type)
 			if not filters:
-				sendToChannel("#wikipedia-en-abuse-log", 
-				"Syntax error detected in filter list page - [[User:Mr.Z-bot/filters.js]]")
+				sendToChannel("Syntax error detected in filter list page - [[User:Mr.Z-bot/filters.js]]")
 			
 validate = re.compile('^[0-9, ]*?$')
 def validateFilterList(filters, type):
