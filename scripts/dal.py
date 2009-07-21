@@ -114,7 +114,7 @@ def makeDAL(article, anivs, word, quote):
 	mail += "Wiktionary's word of the day:\n\n"
 	wotd = word.keys()[0]
 	mail += "%s (%s):\n" % (wotd.decode('utf8'), word[wotd]['type'])
-	mail += breaklines(word[wotd]['definition']) + '\n'
+	mail += breaklines(word[wotd]['definition']).replace('\n\n', '\n') + '\n'
 	linktext = preparelink(wotd)
 	mail += '<http://en.wiktionary.org/wiki/%s>\n\n' % (linktext)
 	mail += '___________________________\n'
@@ -124,6 +124,7 @@ def makeDAL(article, anivs, word, quote):
 	mail += '\n   --'+name.decode('utf-8')+'\n'
 	linktext = preparelink(name)
 	mail += '<http://en.wikiquote.org/wiki/%s>\n\n\n\n' % (linktext)
+	mail = mail.replace('  ', ' ')
 	return mail
 
 def preparelink(text):
