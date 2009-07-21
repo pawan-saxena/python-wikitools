@@ -196,7 +196,7 @@ def getanivs(SA):
 	if not p.exists:
 		raise Exception("ERROR: Selected Aniv. doesn't exist O_o")
 	text = p.getWikiText()
-	text = re.split('\<div style\=\"float\:right\;margin\-left\:(?:0\.5|1)em;?">', text)[1]
+	text = re.split('\<div style\=\"float\:right\; ?margin\-left\:(?:0\.5|1)em;?">', text)[1]
 	lines = text.splitlines()		
 	lines2 = []
 	for line in lines:
