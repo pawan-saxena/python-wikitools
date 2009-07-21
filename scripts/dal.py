@@ -12,13 +12,13 @@ anivyear = re.compile("\{\{\*mp\}\}\s?\[\[(?P<year>[0-9]*)(?P<suf> AD| CE| BC| B
 anivpicture = re.compile("\([^\)]*?pictured\)", re.I)
 quotename = re.compile("~ \[\[(.*?)\]\].*")
 
-boldtext = re.compile("'''(.*?)'''")
-italic = re.compile("''(.*?)''", re.U)
+boldtext = re.compile("'''(.*?)'''", re.DOTALL)
+italic = re.compile("''(.*?)''", re.DOTALL)
 pipelinks = re.compile("\[\[[^\|\]]+?\|([^\]]+?)\]\]")
 links = re.compile("\[\[([^\]]+?)\]\]")
-comments = re.compile("<!--.*?-->")
+comments = re.compile("<!--.*?-->", re.DOTALL)
 linebreaks = re.compile("<\s*(br|p)\s*\/?\s*>", re.I)
-htmltags = re.compile(r"<\s*(span|div|p|b|i|small|s|tt|strike|u|font|sub|sup|nowiki)(?: .*?)?>(.*?)<\s*\/\1\s*>", re.I)
+htmltags = re.compile(r"<\s*(span|div|p|b|i|small|s|tt|strike|u|font|sub|sup|nowiki)(?: .*?)?>(.*?)<\s*\/\1\s*>", re.I|re.DOTALL)
 entities = re.compile("\&([^;]{3,6}?);")
 
 enwiki = wiki.Wiki()
@@ -197,6 +197,7 @@ def getanivs(SA):
 		raise Exception("ERROR: Selected Aniv. doesn't exist O_o")
 	text = p.getWikiText()
 	text = re.split('\<div style\=\"float\:right\; ?margin\-left\:(?:0\.5|1)em;?">', text)[1]
+	text = comments.sub('', text)
 	lines = text.splitlines()		
 	lines2 = []
 	for line in lines:
