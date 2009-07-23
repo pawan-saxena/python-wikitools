@@ -109,7 +109,6 @@ def sendToChannel(msg):
 	f.write(msg+"\n")
 	f.close()
 	connections['command'].privmsg("#wikipedia-en-abuse-log", msg)
-	print msg
 	
 immediate = set() 
 vandalism = set()
@@ -266,7 +265,6 @@ def main():
 			rows = logFromDB(lastid)
 		attempts = []
 		for row in rows:
-			print row
 			logid = row['l']
 			if logid <= lastid:
 				continue
@@ -381,6 +379,8 @@ def getLists():
 			filters = validateFilterList(filters, type)
 			if not filters:
 				sendToChannel("Syntax error detected in filter list page - [[User:Mr.Z-bot/filters.js]]")
+	vandalism = set([str(f) for f in vandalism])
+	immediate = set([str(f) for f in immediate])
 			
 validate = re.compile('^[0-9, ]*?$')
 def validateFilterList(filters, type):
