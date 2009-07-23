@@ -364,6 +364,7 @@ def filterName(filterid):
 	return name
 	
 def getLists():
+	global immediate, vandalism
 	f = open('/home/alexz/messages', 'ab')
         f.write("Getting lists\n")
         f.close()
