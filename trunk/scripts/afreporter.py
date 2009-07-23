@@ -187,7 +187,8 @@ def logFromAPI(lasttime):
 	req = api.APIRequest(site, params)
 	res = req.query()	
 	rows = res['query']['abuselog']
-	del rows[0] # The API uses >=, so the first row will be the same as the last row of the last set
+	if len(rows) > 0:
+		del rows[0] # The API uses >=, so the first row will be the same as the last row of the last set
 	ret = []
 	for row in rows:
 		entry = {}
