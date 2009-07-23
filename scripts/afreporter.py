@@ -331,7 +331,7 @@ def reportUser(u, filter=None, hit=None):
 	username = u.name.encode('utf8')
 	if filter:
 		name = filterName(filter)
-		reason = "Tripped [[Special:AbuseFilter/%(f)d|filter %(f)d]] (%(n)s) "\
+		reason = "Tripped [[Special:AbuseFilter/%(f)s|filter %(f)s]] (%(n)s) "\
 		"([{{fullurl:Special:AbuseLog|details=%(h)d}} details])."\
 		% {'f':filter, 'n':name, 'h':hit}
 	else:
