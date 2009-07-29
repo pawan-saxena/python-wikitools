@@ -10,7 +10,7 @@ TFAtitle = re.compile("\('''\[\[(.*?)\|more\.\.\.\]\]'''")
 anivreg = re.compile("'''\s?\"?\[\[(.*?)\]\]\"?s?[\.\,]?\s?'''")
 anivyear = re.compile("\{\{\*mp\}\}\s?\[\[(?P<year>[0-9]*)(?P<suf> AD| CE| BC| BCE)?\]\] +&ndash;")
 anivpicture = re.compile("\([^\)]*?pictured\)", re.I)
-quotename = re.compile("~ \[\[(.*?)\]\].*")
+quotename = re.compile("~ .*?\[\[(.*?)\]\].*")
 
 boldtext = re.compile("'''(.*?)'''", re.DOTALL)
 italic = re.compile("''(.*?)''", re.DOTALL)
