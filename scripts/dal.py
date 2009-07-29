@@ -18,8 +18,9 @@ pipelinks = re.compile("\[\[[^\|\]]+?\|([^\]]+?)\]\]")
 links = re.compile("\[\[([^\]]+?)\]\]")
 comments = re.compile("<!--.*?-->", re.DOTALL)
 linebreaks = re.compile("<\s*(br|p)\s*\/?\s*>", re.I)
-htmltags = re.compile(r"<\s*(span|div|p|b|i|small|s|tt|strike|u|font|sub|sup|nowiki)(?: .*?)?>(.*?)<\s*\/\1\s*>", re.I|re.DOTALL)
+htmltags = re.compile(r"<\s*(span|div|p|b|i|small|s|tt|strike|u|font|sub|sup|nowiki)(?P<attribs> .*?)?>(?P<value>.*?)<\s*\/\1\s*>", re.I|re.DOTALL)
 entities = re.compile("\&([^;]{3,6}?);")
+displaynone = re.compile("display\: *none", re.I)
 
 enwiki = wiki.Wiki()
 enwiki.setMaxlag(70)
@@ -244,10 +245,16 @@ def killFormatting(text):
 	text = links.sub(r'\1', text)
 	# harder
 	text = linebreaks.sub('\n', text)
-	text = htmltags.sub(r'\2', text)
+	text = htmltags.sub(replacetags, text)
 	# wtf?
 	text = entities.sub(replaceEntities, text)
 	return text.replace('  ', ' ')
+
+def replacetags(matchobj):
+	attribs = matchobj.group('attribs')
+	if attribs and displaynone.search(attribs):
+		return ''
+	return matchobj.group('value')
 
 def replaceEntities(matchobj):
 	code = matchobj.group(1)
