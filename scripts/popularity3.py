@@ -340,6 +340,9 @@ def makeTempTables():
 	
 hashlist = set()
 def setupProject(project, abbrv):
+	site = wiki.Wiki()
+	site.login(settings.bot, settings.botpass)
+	site.setMaxlag(-1)
 	date = datetime.datetime.utcnow()+datetime.timedelta(days=15)	
 	table = date.strftime('pop_%b%y')
 	db = MySQLdb.connect(host="sql-s1", read_default_file="/home/alexz/.my.cnf")
