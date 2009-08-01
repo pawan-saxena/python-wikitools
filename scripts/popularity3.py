@@ -13,6 +13,7 @@ import settings
 import calendar
 import subprocess
 import time
+import locale
 
 class ProjectLister(object):
 
@@ -42,14 +43,14 @@ class Project(object):
 
 articletypes = {'unassessed':'{{unassessed-Class}}', 'file':'{{File-Class}}',
 	'template':'{{template-Class}}', 'category':'{{category-Class}}', 'disambig':'{{disambig-Class}}',
-	'portal':'{{portal-Class}}', 'list':'{{list-Class}}',
+	'portal':'{{portal-Class}}', 'list':'{{list-Class}}', 'image':'{{File-Class}}',
 	'non-article':'{{NA-Class}}', 'blank':'{{NA-Class}}', 'stub':'{{stub-Class}}', 'start':'{{start-Class}}',
 	'C':'{{C-Class}}', 'B':'{{B-Class}}', 'GA':'{{GA-Class}}', 'A':'{{A-Class}}',
 	'FL':'{{FL-Class}}', 'FA':'{{FA-Class}}'} # This should cover most instances, some projects have some odd ones
 
 importancetemplates = {'Top':'{{Top-importance}}', 'High':'{{High-importance}}', 'Mid':'{{Mid-importance}}',
 	'Low':'{{Low-importance}}', 'Bottom':'{{Bottom-importance}}', 'No':'{{No-importance}}', 'NA':'{{NA-importance}}',
-	'Unknown':'{{-importance}}' }
+	'Unknown':'{{-importance}}', None:'{{-importance}}' }
 	
 # Manual run options:
 # * --setup - runs setup
@@ -222,7 +223,7 @@ def makeResults(date=None):
 	month = date.month
 	year = date.year
 	numdays = calendar.monthrange(year, month)[1]
-	table = date.strftime('pop_%b%y')
+	dbtable = date.strftime('pop_%b%y')
 	db = MySQLdb.connect(host="sql", db='u_alexz', read_default_file="/home/alexz/.my.cnf")
 	cursor = db.cursor()
 	for proj in projects.keys():
@@ -234,26 +235,27 @@ def makeResults(date=None):
 		if target.exists:
 			section = 1
 		limit = projects[proj].limit
-		header = "This is a list of the top 1000 (or all) pages ordered by number of views in the scope of "+projects[proj].name+".\n\n"
-		header += "The data comes from data published by [[User:Midom|Domas Mituzas]] from Wikipedia's [[Squid (software)|squid]] server logs. "
+		header = "This is a list of the top pages ordered by number of views in the scope of "+projects[proj].name+".\n\n"
+		header += "The data comes from data extracted from Wikipedia's [[Squid (software)|squid]] server logs. "
 		header += "Note that due to the use of a different program than http://stats.grok.se/ the numbers here may differ from that site. For more information, "
-		header += "or for a copy of the full data for all pages, leave a message on [[User talk:Mr.Z-man|this talk page]].\n\n"
+		header += "leave a message on [[User talk:Mr.Z-man|this talk page]].\n\n"
+		header += "You can view more results using the [[tools:~alexz/pop/|toolserver tool]].\n\n"
 		header += "'''Note:''' This data aggregates the views for all redirects to each page.\n\n"
 		header += "==List==\n<!-- Changes made to this section will be overwritten on the next update. Do not change the name of this section. -->"
-		header += "\nPeriod: "+str(year)+"-"+str(month)+"-01 &mdash; "+str(year)+"-"+str(month)+"-"+str(numdays)+" (UTC)\n\n"
+		header += "\nPeriod: "+str(year)+"-"+str(month).zfill(2)+"-01 &mdash; "+str(year)+"-"+str(month).zfill(2)+"-"+str(numdays)+" (UTC)\n\n"
 		if not section:
 			table = header + '{| class="wikitable sortable" style="text-align: right;"\n'
 		else:
 			table = "==List==\n<!-- Changes made to this section will be overwritten on the next update. Do not change the name of this section. -->"
-			table += "\nPeriod: "+str(year)+"-"+str(month)+"-01 &mdash; "+str(year)+"-"+str(month)+"-"+str(numdays)+" (UTC)\n\n"
+			table += "\nPeriod: "+str(year)+"-"+str(month).zfill(2)+"-01 &mdash; "+str(year)+"-"+str(month).zfill(2)+"-"+str(numdays)+" (UTC)\n\n"
 			table += '{| class="wikitable sortable" style="text-align: right;"\n'
-		query = "SELECT title, hits, project_assess FROM `"+table+"` WHERE MATCH(project_assess) AGAINST (\"'"+proj+"':\") ORDER BY hits DESC LIMIT "+limit
+		query = "SELECT title, hits, project_assess FROM `"+dbtable+"` WHERE MATCH(project_assess) AGAINST (\"'"+proj+"':\") ORDER BY hits DESC LIMIT "+str(limit)
 		cursor.execute(query)
 		result = cursor.fetchall()
 		test = result[0][2]
 		imprt_test = eval('{'+test+'}')
 		useImportance = True
-		if imprt_test[project][1] is None:
+		if imprt_test[proj][1] is None:
 			useImportance = False
 		table+= '! Rank\n! Page\n! Views\n! Views (per day average)\n! Assessment\n'
 		if useImportance:
@@ -264,7 +266,7 @@ def makeResults(date=None):
 			hits = locale.format("%.*f", (0,record[1]), True)
 			avg = locale.format("%.*f", (0, record[1]/numdays ), True)					
 			project_assess = eval('{'+record[2]+'}')
-			assess = project_assess[project][0]
+			assess = project_assess[proj][0]
 			template = articletypes[assess]
 			table+= "|-\n"
 			table+= "| " + locale.format("%.*f", (0,rank), True) + "\n"
@@ -273,11 +275,9 @@ def makeResults(date=None):
 			table+= "| " + avg + "\n"
 			table+= "| " + template + "\n"
 			if useImportance:
-				imp = project_assess[project][1]
+				imp = project_assess[proj][1]
 				tem = importancetemplates[imp]
 				table+= "| " + tem + "\n"
-			if rank/100 == rank/100.0:
-				logMsg( rank)
 		table += "|}"
 		res = target.edit(newtext=table, summary="Popularity stats for "+projects[proj].name, section=str(section))
 		if 'new' in res['edit']:
