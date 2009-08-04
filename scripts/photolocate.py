@@ -23,7 +23,7 @@ def main():
 	local.execute("SELECT title FROM photocoords_2")
 	titles = local.fetchall()
 	count = 0
-	qpdatequery = "UPDATE photocoords_2 SET latitude=%s, longitude=%s WHERE title=%s"
+	updatequery = "UPDATE photocoords_2 SET latitude=%s, longitude=%s WHERE title=%s"
 	local.execute('START TRANSACTION')
 	for t in titles:
 		count += 1
@@ -57,7 +57,7 @@ def main():
 			else:
 				reportError('Coords not found', title=t, err=url)
 				continue
-			local.execute(qpdatequery, (lat, long, t))
+			local.execute(updatequery, (lat, long, t))
 		except BadDirection, e:
 			reportError('Unknown direction', err=e, title=t)
 		except BadData, e:
