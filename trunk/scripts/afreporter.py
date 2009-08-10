@@ -120,17 +120,16 @@ def checklag():
 	f.write("Checking lag\n")
 	f.close()
 	waited = False
-	res = False	
+	try:
+		testdb = MySQLdb.connect(db='enwiki_p', host="sql-s1", read_default_file="/home/alexz/.my.cnf")
+		testcursor = testdb.cursor()
+	except: # server down
+		useAPI = True
+		return False
 	while True:
 		# Check toolserver replag
-		while not res:
-			try:
-				r = urllib.urlopen('http://toolserver.org/~soxred93/api.php?action=replag&format=json')
-				res = json.loads(r.read())
-			except:
-				pass
-		replag = res['s1']
-		res = False
+		testcursor.execute('SELECT UNIX_TIMESTAMP() - UNIX_TIMESTAMP(rc_timestamp) FROM recentchanges ORDER BY rc_timestamp DESC LIMIT 1')
+		replag = testcursot.fetchone()[0]
 		# Fallback to API if replag is too high
 		if replag > 300 and not useAPI:
 			useAPI = True
@@ -164,8 +163,20 @@ db = MySQLdb.connect(db='enwiki_p', host="sql-s1", read_default_file="/home/alex
 cursor = db.cursor()
 	
 def getStart():
-	cursor.execute('SELECT afl_timestamp, afl_id FROM abuse_filter_log ORDER BY afl_id DESC LIMIT 1')
-	(lasttime, lastid) = cursor.fetchone()
+	if useAPI:
+		params = {'action':'query',
+			'list':'abuselog',
+			'aflprop':'ids|timestamp',
+			'afllimit':'1',
+		}
+		req = api.APIRequest(site, params)
+		res = req.query(False)
+		row = res['query']['abuselog'][0]
+		lasttime = row['timestamp']
+		lastid = row['id']
+	else:
+		cursor.execute('SELECT afl_timestamp, afl_id FROM abuse_filter_log ORDER BY afl_id DESC LIMIT 1')
+		(lasttime, lastid) = cursor.fetchone()
 	return (lasttime, lastid)
 	
 def normTS(ts): # normalize a timestamp to the API format
@@ -199,7 +210,7 @@ def logFromAPI(lasttime):
 		entry['t'] = p.unprefixedtitle
 		entry['u'] = row['user']
 		entry['ts'] = row['timestamp']
-		entry['f'] = row['filter_id']
+		entry['f'] = str(row['filter_id'])
 		ret.append(entry)
 	return ret	
 	
@@ -344,7 +355,11 @@ def reportUser(u, filter=None, hit=None):
 	else:
 		line = "\n* {{Vandal|%s}} - " % (username)
 	line += reason+" ~~~~"
-	AIV.edit(appendtext=line, summary=editsum)
+	try:
+		AIV.edit(appendtext=line, summary=editsum)
+	except api.APIError: # hacky workaround for mystery error
+		time.sleep(1)
+		AIV.edit(appendtext=line, summary=editsum)
 
 namecache = timedTracker(expiry=86400)
 	
