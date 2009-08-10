@@ -129,7 +129,7 @@ def checklag():
 	while True:
 		# Check toolserver replag
 		testcursor.execute('SELECT UNIX_TIMESTAMP() - UNIX_TIMESTAMP(rc_timestamp) FROM recentchanges ORDER BY rc_timestamp DESC LIMIT 1')
-		replag = testcursot.fetchone()[0]
+		replag = testcursor.fetchone()[0]
 		# Fallback to API if replag is too high
 		if replag > 300 and not useAPI:
 			useAPI = True
