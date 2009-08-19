@@ -20,7 +20,7 @@ def main():
 		serverdown('s1')
 		
 	try:
-		db = MySQLdb.connect(db='dewiki_p', host="sql-s1", read_default_file="/home/alexz/.my.cnf")
+		db = MySQLdb.connect(db='dewiki_p', host="sql-s2", read_default_file="/home/alexz/.my.cnf")
 		cursor = db.cursor()
 		cursor.execute(query)
 		serverup('s2')
@@ -33,7 +33,7 @@ def main():
 		serverdown('s2')
 		
 	try:
-		db = MySQLdb.connect(db='frwiki_p', host="sql-s1", read_default_file="/home/alexz/.my.cnf")
+		db = MySQLdb.connect(db='frwiki_p', host="sql-s3", read_default_file="/home/alexz/.my.cnf")
 		cursor = db.cursor()
 		cursor.execute(query)
 		serverup('s3')
