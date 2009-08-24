@@ -1,7 +1,6 @@
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
 import os
-import cPickle as pickle
 import datetime
 import urllib
 import httplib
@@ -79,9 +78,11 @@ def main():
 		unlock()
 		return
 	lists = (todo-datetime.timedelta(hours=1)).strftime('.%b%y')
-	l = open('lastrun.dat', 'r')
-	last = pickle.load(l)
-	l.close()
+	db = MySQLdb.connect(host="sql", read_default_file="/home/alexz/.my.cnf", db='u_alexz')
+	c = db.cursor()
+	c.execute('SELECT last FROM last_run')
+	last = c.fetchone()[0]
+	db.close()
 	if (todo - last).seconds > 3600 or (todo-last).days:
 		files = handleMissedRun(todo, last)
 	else:
@@ -89,9 +90,10 @@ def main():
 	for f in files:
 		processPage(f, lists)
 	addResults(todo)
-	l = open('lastrun.dat', 'w')
-	pickle.dump(todo, l, pickle.HIGHEST_PROTOCOL)
-	l.close()
+	db = MySQLdb.connect(host="sql", read_default_file="/home/alexz/.my.cnf", db='u_alexz')
+	c = db.cursor()
+	datestring = todo.isoformat(' ')
+	c.execute('UPDATE last_run SET last='+datestring+' WHERE 1')
 	unlock()
 	next = todo + datetime.timedelta(hours=1)
 	if next.day == 1 and next.hour == 1:
