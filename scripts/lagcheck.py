@@ -44,6 +44,13 @@ def main():
 			nolag('s3')
 	except:
 		serverdown('s3')
+	try:
+		db = MySQLdb.connect(db='u_alexz',host="sql",read_default_file="/home/alexz/.my.cnf")
+		cursor = db.cursor()
+		serverup('sql')
+	except:
+		serverdown('sql')
+
 		
 def highlag(server):
 	f = open('/home/alexz/public_html/messages/'+server+'-replag', 'wb')

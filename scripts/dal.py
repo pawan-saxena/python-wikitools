@@ -7,7 +7,7 @@ import settings, datetime, re, htmlentitydefs, urllib, codecs, smtplib, sys
 
 TFAreg = re.compile(".*?\n([^\n]*'''\[\[.*?)\|more\.\.\.\]\]'''\)", re.I|re.S)
 TFAtitle = re.compile("\('''\[\[(.*?)\|more\.\.\.\]\]'''")
-anivreg = re.compile("'''\s?\"?\[\[(.*?)\]\]\"?s?[\.\,]?\s?'''")
+anivreg = re.compile("'''\s?\"?\[\[(.*?)\]\][a-z]?\"?[\.\,]?\s?'''")
 anivyear = re.compile("\{\{\*mp\}\}\s?\[\[(?P<year>[0-9]*)(?P<suf> AD| CE| BC| BCE)?\]\] +&ndash;")
 anivpicture = re.compile("\([^\)]*?pictured\)", re.I)
 quotename = re.compile("~ .*?\[\[(.*?)\]\].*")

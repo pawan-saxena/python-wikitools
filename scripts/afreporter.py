@@ -130,6 +130,9 @@ def checklag():
 		# Check toolserver replag
 		testcursor.execute('SELECT UNIX_TIMESTAMP() - UNIX_TIMESTAMP(rc_timestamp) FROM recentchanges ORDER BY rc_timestamp DESC LIMIT 1')
 		replag = testcursor.fetchone()[0]
+		f = open('/home/alexz/messages', 'ab')
+		f.write("Replag is "+str(replag)+"\n")
+		f.close()
 		# Fallback to API if replag is too high
 		if replag > 300 and not useAPI:
 			useAPI = True
