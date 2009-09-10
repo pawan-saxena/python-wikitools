@@ -5,6 +5,7 @@ from wikitools import *
 import settings
 import re
 site = wiki.Wiki()
+site.setMaxlag(-1)
 site.login(settings.bot, settings.botpass)
 
 def main():

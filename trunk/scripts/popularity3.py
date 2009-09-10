@@ -93,7 +93,7 @@ def main():
 	db = MySQLdb.connect(host="sql", read_default_file="/home/alexz/.my.cnf", db='u_alexz')
 	c = db.cursor()
 	datestring = todo.isoformat(' ')
-	c.execute('UPDATE last_run SET last='+datestring+' WHERE 1')
+	c.execute('UPDATE last_run SET last="'+datestring+'" WHERE 1')
 	unlock()
 	next = todo + datetime.timedelta(hours=1)
 	if next.day == 1 and next.hour == 1:
@@ -216,6 +216,7 @@ def unlock():
 def makeResults(date=None):
 	site = wiki.Wiki()
 	site.login(settings.bot, settings.botpass)
+	site.setMaxlag(15)
 	lister = ProjectLister()
 	projects = lister.projects
 	if not date:
@@ -287,10 +288,10 @@ def makeResults(date=None):
 			
 def notifyProject(proj, listpage, site):
 	p = page.Page(site, proj, namespace=4)
-	talk = proj.toggleTalk()
+	talk = p.toggleTalk()
 	text = '\n{{subst:User:Mr.Z-man/np|%s|%s}}' % (proj, listpage)
 	summary = 'Pageview stats'
-	talk.edit(appendtext=text, summary=summary, section='new')
+	talk.edit(text=text, summary=summary, section='new')
 	
 def setup():
 	os.chdir('/home/alexz/popularity/')
