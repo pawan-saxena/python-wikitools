@@ -105,9 +105,6 @@ class BotRunnerThread(threading.Thread):
 		self.bot.start()
 
 def sendToChannel(msg):
-	f = open('/home/alexz/messages', 'ab')
-	f.write(msg+"\n")
-	f.close()
 	connections['command'].privmsg("#wikipedia-en-abuse-log", msg)
 	
 immediate = set() 
@@ -116,9 +113,6 @@ useAPI = False
 
 def checklag():
 	global connections, useAPI
-	f = open('/home/alexz/messages', 'ab')
-	f.write("Checking lag\n")
-	f.close()
 	waited = False
 	try:
 		testdb = MySQLdb.connect(db='enwiki_p', host="sql-s1", read_default_file="/home/alexz/.my.cnf")
@@ -130,9 +124,6 @@ def checklag():
 		# Check toolserver replag
 		testcursor.execute('SELECT UNIX_TIMESTAMP() - UNIX_TIMESTAMP(rc_timestamp) FROM recentchanges ORDER BY rc_timestamp DESC LIMIT 1')
 		replag = testcursor.fetchone()[0]
-		f = open('/home/alexz/messages', 'ab')
-		f.write("Replag is "+str(replag)+"\n")
-		f.close()
 		# Fallback to API if replag is too high
 		if replag > 300 and not useAPI:
 			useAPI = True
@@ -253,9 +244,6 @@ def main():
 	while len(connections) != 1:
 		time.sleep(2)
 	time.sleep(5)
-	f = open('/home/alexz/messages', 'ab')
-        f.write("Started\n")
-        f.close()
 	checklag()
 	lagcheck = time.time()
 	IRCut = timedTracker() # user tracker for IRC
@@ -384,9 +372,6 @@ def filterName(filterid):
 	
 def getLists():
 	global immediate, vandalism
-	f = open('/home/alexz/messages', 'ab')
-        f.write("Getting lists\n")
-        f.close()
 	lists = page.Page(site, "User:Mr.Z-bot/filters.js", check=False)
 	cont = lists.getWikiText(force=True)
 	lines = cont.splitlines()
