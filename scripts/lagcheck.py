@@ -65,12 +65,12 @@ def nolag(server):
 def serverdown(server):
 	if os.path.getsize('/home/alexz/public_html/messages/'+server) is 0:
 		f = open('/home/alexz/public_html/messages/'+server, 'wb')
-		f.write('Due to a server error, this tool may not function fully')
+		f.write('<!--serverdown-->Due to a server error, this tool may not function fully')
 		f.close()
 
 def serverup(server):
 	f = open('/home/alexz/public_html/messages/'+server, 'rb')
-	if f.read() == 'Due to a server error, this tool may not function fully':
+	if '<!--serverdown-->' in f.read():
 		f.close()
 		f = open('/home/alexz/public_html/messages/'+server, 'wb')
 		f.write('')
