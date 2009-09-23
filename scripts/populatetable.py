@@ -48,7 +48,7 @@ f.close()
 print "Getting titles"
 c.execute("""CREATE TABLE IF NOT EXISTS u_alexz.catpages_tmp (
   `title` varchar(255) NOT NULL,
-  KEY `title` (`title`)
+  UNIQUE KEY `title` (`title`)
 ) ENGINE=InnoDB;
 """)
 c.execute("TRUNCATE TABLE u_alexz.catpages_tmp")
@@ -76,20 +76,24 @@ f.close()
 # JOIN AGAINST TEMPLATELINKS
 print "Doing join"
 
-joinquery = """SELECT u_alexz.catpages_tmp.title FROM u_alexz.catpages_tmp
+joinquery = """SELECT u_alexz.catpages_tmp.title, AsBinary(u_dispenser_p.coord_enwiki.gc_location) FROM u_alexz.catpages_tmp
 JOIN enwiki_p.page ON enwiki_p.page.page_title = u_alexz.catpages_tmp.title
 JOIN enwiki_p.templatelinks ON enwiki_p.templatelinks.tl_from=enwiki_p.page.page_id
+JOIN u_dispenser_p.coord_enwiki ON u_dispenser_p.coord_enwiki.gc_from=enwiki_p.page.page_id
 WHERE enwiki_p.templatelinks.tl_namespace=10 AND enwiki_p.page.page_namespace=0
+AND u_dispenser_p.coord_enwiki.gc_primary=1
 AND enwiki_p.templatelinks.tl_title in ("Coord", "Coor_URL")"""
 
 c.execute(joinquery)
 pages = set(c.fetchall())
 
 print "Getting pages w/ no images"
-noimages = """SELECT page_title FROM enwiki_p.page
+noimages = """SELECT page_title, AsBinary(u_dispenser_p.coord_enwiki.gc_location) FROM enwiki_p.page
 LEFT JOIN enwiki_p.imagelinks ON il_from=page_id 
 JOIN enwiki_p.templatelinks ON tl_from=page_id 
+JOIN u_dispenser_p.coord_enwiki ON u_dispenser_p.coord_enwiki.gc_from=enwiki_p.page.page_id
 WHERE page_namespace = 0 AND il_from IS NULL AND page_is_redirect=0 
+AND u_dispenser_p.coord_enwiki.gc_primary=1
 AND tl_namespace=10 AND tl_title IN ("Coord", "Coor_URL")"""
 
 c.execute(noimages)
@@ -104,9 +108,9 @@ del pages2
 print "Making temp table"
 db2 = MySQLdb.connect(db='u_alexz', host="sql", read_default_file="/home/alexz/.my.cnf")
 c2 = db2.cursor()
-insquery2 = """INSERT INTO u_alexz.photocoords_2 (title, reqphoto) VALUES (%s, 1)"""
-insquery3 = """INSERT INTO u_alexz.photocoords_2 (title, reqphoto, noimg) VALUES (%s, 1, 1)"""
-insquery4 = """INSERT INTO u_alexz.photocoords_2 (title, noimg) VALUES (%s, 1)"""
+insquery2 = """INSERT INTO u_alexz.photocoords_2 (title, coordinate, reqphoto) VALUES (%s, PointFromWKB(%s), 1)"""
+insquery3 = """INSERT INTO u_alexz.photocoords_2 (title, coordinate, reqphoto, noimg) VALUES (%s, PointFromWKB(%s), 1, 1)"""
+insquery4 = """INSERT INTO u_alexz.photocoords_2 (title, coordinate, noimg) VALUES (%s, PointFromWKB(%s), 1)"""
 
 
 try:
@@ -117,15 +121,13 @@ except:
 	pass
 
 c2.execute("START TRANSACTION")
-c2.execute("""CREATE TABLE IF NOT EXISTS `photocoords_2` (
-  `title` varchar(255) CHARACTER SET utf8 COLLATE utf8_bin,
-  `latitude` float DEFAULT NULL,
-  `longitude` float DEFAULT NULL,
-  `reqphoto` tinyint(1) DEFAULT 0,
-  `noimg` tinyint(1) DEFAULT 0,
-  KEY `lat_long` (`latitude`,`longitude`),
-  KEY `title` (`title`)
-) ENGINE=InnoDB""")
+c2.execute(""" CREATE TABLE IF NOT EXISTS `photocoords_2` (
+  `title` varchar(255) CHARACTER SET utf8 COLLATE utf8_bin DEFAULT NULL,
+  `coordinate` point NOT NULL,
+  `reqphoto` tinyint(1) DEFAULT '0',
+  `noimg` tinyint(1) DEFAULT '0',
+  SPATIAL KEY `coordinate` (`coordinate`)
+) ENGINE=MyISAM""")
 c2.execute("COMMIT")
 
 c2.execute("START TRANSACTION")
@@ -134,30 +136,21 @@ c2.execute("COMMIT")
 
 c2.execute("START TRANSACTION")
 for entry in pages:
-		c2.execute(insquery2, (entry[0]))
+		c2.execute(insquery2, (entry[0], entry[1]))
 c2.execute("COMMIT")
 del pages
 c2.execute("START TRANSACTION")
 for entry in both:
-		c2.execute(insquery3, (entry[0]))
+		c2.execute(insquery3, (entry[0], entry[1]))
 c2.execute("COMMIT")
 del both
 c2.execute("START TRANSACTION")
 for entry in imageless:
-		c2.execute(insquery4, (entry[0]))
+		c2.execute(insquery4, (entry[0], entry[1]))
 c2.execute("COMMIT")
 del imageless
 
 # MAIN TABLE POPULATED
-# GET COORDINATES
-print "Getting coordinates"
-c2.execute("START TRANSACTION")
-c2.execute("TRUNCATE TABLE photoerrors")
-c2.execute("COMMIT")
-import photolocate
-photolocate.main()
-
-# GOT COORDINATES
 # MOVE TABLES
 print "Moving tables"
 db2 = MySQLdb.connect(db='u_alexz', host="sql", read_default_file="/home/alexz/.my.cnf")
@@ -173,12 +166,11 @@ except:
 
 c2.execute("START TRANSACTION")
 c2.execute("""CREATE TABLE IF NOT EXISTS `photocoords` (
-  `title` varchar(255) CHARACTER SET utf8 COLLATE utf8_bin,
-  `latitude` float DEFAULT NULL,
-  `longitude` float DEFAULT NULL,
-  `reqphoto` tinyint(1) DEFAULT 0,
-  `noimg` tinyint(1) DEFAULT 0,
-  KEY `lat_long` (`latitude`,`longitude`)
+  `title` varchar(255) CHARACTER SET utf8 COLLATE utf8_bin DEFAULT NULL,
+  `coordinate` point NOT NULL,
+  `reqphoto` tinyint(1) DEFAULT '0',
+  `noimg` tinyint(1) DEFAULT '0',
+  SPATIAL KEY `coordinate` (`coordinate`)
 ) ENGINE=MyISAM""")
 c2.execute("COMMIT")
 
