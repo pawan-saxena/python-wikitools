@@ -6,6 +6,7 @@ import urllib
 import httplib
 import hashlib
 import MySQLdb
+from MySQLdb import cursors
 import sys
 from wikitools import wiki, page
 import settings
@@ -421,16 +422,19 @@ def makeDataPages():
 	table = date.strftime('pop_%b%y')
 	lists = date.strftime('.%b%y')
 	db = MySQLdb.connect(host="sql-s1", db='u_alexz', read_default_file="/home/alexz/.my.cnf")
-	cursor = db.cursor()
+	cursor = db.cursor(cursors.SSCursor)
 	f = open('pagelist'+lists, 'ab')
 	cursor.execute('SELECT DISTINCT hash FROM '+table)
 	while True:
 		p = cursor.fetchone()
 		if p:
 			f.write(p[0]+"\n")
+			
 		else:
 			break
 	f.close()
+	cursor.close()
+	cursor = db.cursor(cursors.SSCursor)
 	cursor.execute('SELECT DISTINCT rd_hash, target_hash FROM redirect_map')
 	f = open('redirs'+lists, 'ab')
 	while True:
@@ -440,6 +444,7 @@ def makeDataPages():
 		else:
 			break
 	f.close()
+	cursor.close()
 	
 def moveTables():
 	date = datetime.datetime.utcnow()+datetime.timedelta(days=15)	
