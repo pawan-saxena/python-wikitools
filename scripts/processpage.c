@@ -101,5 +101,5 @@ int main ( int argc, char * argv[] ) {
 	}
 	curl_easy_cleanup( curlob );
 	curl_global_cleanup();
-	return 1;
+	return 0;
 }
