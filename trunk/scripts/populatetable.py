@@ -108,9 +108,9 @@ del pages2
 print "Making temp table"
 db2 = MySQLdb.connect(db='u_alexz', host="sql", read_default_file="/home/alexz/.my.cnf")
 c2 = db2.cursor()
-insquery2 = """INSERT INTO u_alexz.photocoords_2 (title, coordinate, reqphoto) VALUES (%s, PointFromWKB(%s), 1)"""
-insquery3 = """INSERT INTO u_alexz.photocoords_2 (title, coordinate, reqphoto, noimg) VALUES (%s, PointFromWKB(%s), 1, 1)"""
-insquery4 = """INSERT INTO u_alexz.photocoords_2 (title, coordinate, noimg) VALUES (%s, PointFromWKB(%s), 1)"""
+insquery2 = """INSERT IGNORE INTO u_alexz.photocoords_2 (title, coordinate, reqphoto) VALUES (%s, PointFromWKB(%s), 1)"""
+insquery3 = """INSERT IGNORE INTO u_alexz.photocoords_2 (title, coordinate, reqphoto, noimg) VALUES (%s, PointFromWKB(%s), 1, 1)"""
+insquery4 = """INSERT IGNORE INTO u_alexz.photocoords_2 (title, coordinate, noimg) VALUES (%s, PointFromWKB(%s), 1)"""
 
 
 try:
@@ -126,6 +126,7 @@ c2.execute(""" CREATE TABLE IF NOT EXISTS `photocoords_2` (
   `coordinate` point NOT NULL,
   `reqphoto` tinyint(1) DEFAULT '0',
   `noimg` tinyint(1) DEFAULT '0',
+  UNIQUE KEY `title` (`title`),
   SPATIAL KEY `coordinate` (`coordinate`)
 ) ENGINE=MyISAM""")
 c2.execute("COMMIT")
