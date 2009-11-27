@@ -134,6 +134,8 @@ def handleMissedRun(cur, last):
 def getFile(date):
 	page = date.strftime('pagecounts-%Y%m%d-%H0000.gz')
 	altpage = date.strftime('pagecounts-%Y%m%d-%H0001.gz')
+	altpageb = date.strftime('pagecounts-%Y%m%d-%H0500.gz')
+	altpagec = date.strftime('pagecounts-%Y%m%d-%H0501.gz')
 	url = "http://mituzas.lt"
 	main = "/wikistats/"
 	archive = "/wikistats/archive/%d/%s/" % (date.year, str(date.month).zfill(2))
@@ -143,6 +145,12 @@ def getFile(date):
 	elif checkExist(main+altpage):
 		url += main + altpage
 		filename = altpage
+	elif checkExist(main+altpageb):
+		url += main + altpageb
+		filename = altpageb
+	elif checkExist(main+altpagec):
+		url += main + altpagec
+		filename = altpagec
 	elif checkExist(archive+page):
 		url += archive + page
 		filename = page
@@ -150,7 +158,8 @@ def getFile(date):
 		url += archive + altpage
 		filename = altpage
 	else:
-		raise Exception("File doesn't exist")
+		unlock()
+		raise Exception("File doesn't exist: "+str(date))
 	urllib.urlretrieve(url, filename)
 	return filename
 		
