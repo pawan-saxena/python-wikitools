@@ -6,8 +6,8 @@
 #include <glib.h>
 
 // arg1 = datafile
-// arg2 = main hash list
-// arg3 = redirect hash list
+// arg2 = list of titles
+// arg3 = redirect/title pairs
 
 int main ( int argc, char * argv[] ) {
 	curl_global_init( CURL_GLOBAL_NOTHING );
