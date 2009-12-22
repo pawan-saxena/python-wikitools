@@ -3,7 +3,6 @@
 #include <string.h>
 #include <zlib.h>
 #include <curl/curl.h>
-#include <openssl/evp.h>
 #include <glib.h>
 
 // arg1 = datafile
@@ -15,17 +14,14 @@ int main ( int argc, char * argv[] ) {
 	CURL *curlob = curl_easy_init();
 	char *title, *hits, *content, *res, *line, **arr, **bits;
 	int hit = 0, i = 0;
-	unsigned int md_len, tlen;
-	EVP_MD_CTX mdctx;
-	const EVP_MD *md = EVP_md5();
-	unsigned char md_value[EVP_MAX_MD_SIZE];
+	unsigned int tlen;
 	void *table;
 	FILE *pagelist, *redirlist;
 	table = g_hash_table_new( g_str_hash, g_str_equal );
 	pagelist = fopen( argv[2], "rb" );
 	while(1) {
-		line = malloc(34*sizeof(char));
-		line = fgets( line, 34, pagelist );
+		line = malloc(256*sizeof(char));
+		line = fgets( line, 256, pagelist );
 		if (line == NULL) {
 			break;
 		}
@@ -35,13 +31,13 @@ int main ( int argc, char * argv[] ) {
 	fclose( pagelist );
 	redirlist = fopen( argv[3], "rb" );
 	while(1) {
-		line = malloc(67*sizeof(char));
-		line = fgets( line, 67, redirlist );
+		line = malloc(512*sizeof(char));
+		line = fgets( line, 512, redirlist );
 		if (line == NULL) {
 			break;
 		}
 		line = strtok( line, "\n");
-		arr = g_strsplit( line, "=", 2);
+		arr = g_strsplit( line, "|", 2);
 		g_hash_table_insert( table, arr[0], arr[1]);
 		free(line);
 	}
@@ -66,7 +62,7 @@ int main ( int argc, char * argv[] ) {
 		title = bits[1];
 		hits = bits[2];
 		title = curl_easy_unescape( curlob, title, 0, NULL );
-		if ( strstr( title, " " ) ) {
+		if ( strchr( title, " " ) ) {
 			tlen = strlen(title);
 			for (i=0; i<tlen; i++) {
 				if( title[i] == ' ') {
@@ -74,26 +70,15 @@ int main ( int argc, char * argv[] ) {
 				}
 			}
 		}
-		EVP_MD_CTX_init(&mdctx);
-		EVP_DigestInit_ex(&mdctx, md, NULL);
-		EVP_DigestUpdate(&mdctx, title, strlen(title));
-		EVP_DigestFinal_ex(&mdctx, md_value, &md_len);
-		EVP_MD_CTX_cleanup(&mdctx);
-		char hash[32] = "";
-		char *phash = hash;
-		for(i = 0; i < md_len; i++) {
-			sprintf(phash, "%02x", md_value[i]);
-			phash +=2;
-		}
-		res = g_hash_table_lookup( table, hash );
+		res = g_hash_table_lookup( table, title );
 		if ( res == "" ) {
-			printf(hash);
+			printf(title);
 		} 
 		if(res != NULL) {
 			if (res != "") {
 				printf(res);
 			}
-			printf(" - %s\n", hits);
+			printf(" | %s\n", hits);
 		}
 		g_strfreev(bits);
 		free(content);
