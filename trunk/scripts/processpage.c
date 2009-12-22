@@ -62,7 +62,7 @@ int main ( int argc, char * argv[] ) {
 		title = bits[1];
 		hits = bits[2];
 		title = curl_easy_unescape( curlob, title, 0, NULL );
-		if ( strchr( title, " " ) ) {
+		if ( strchr( title, ' ' ) ) {
 			tlen = strlen(title);
 			for (i=0; i<tlen; i++) {
 				if( title[i] == ' ') {
