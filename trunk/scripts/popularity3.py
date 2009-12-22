@@ -184,13 +184,19 @@ def checkExist(testurl):
 		conn.close()
 		return True
 		
-def addResults(date):
+def addResults(date):	
+	if '-200912' in filename or 'pagecounts-20100101-00' in filename:
+		useold = True
+	else:
+		useold = False
 	global hitcount
 	def doQuery(titlelist):
 		cond = ','.join([repr(h) for h in titlelist])
 		q = query % (table, group, cond)
 		c.execute(q)
 	query = "UPDATE %s SET hits=hits+%d WHERE title IN (%s)"
+	if useold:
+		query = "UPDATE %s SET hits=hits+%d WHERE hash IN (%s)"
 	db = MySQLdb.connect(host="sql", read_default_file="/home/alexz/.my.cnf", db='u_alexz')
 	c = db.cursor()
 	if date.day == 1 and date.hour == 0:
