@@ -57,6 +57,7 @@ importancetemplates = {'Top':'{{Top-importance}}', 'High':'{{High-importance}}',
 # * --manual=page - manually run the given datapage
 	
 hitcount = {}
+useold = True
 
 def main():
 	os.chdir('/home/alexz/popularity/')
@@ -100,6 +101,7 @@ def main():
 		makeResults()
 
 def processPage(filename, lists):
+	global useold
 	useold = True
 	if '-200912' in filename or 'pagecounts-20100101-00' in filename:
 		proc = subprocess.Popen(['/home/alexz/scripts/processpage', filename, 'pagelist'+lists, 'redirs'+lists], stdout=subprocess.PIPE)
@@ -184,11 +186,8 @@ def checkExist(testurl):
 		conn.close()
 		return True
 		
-def addResults(date):	
-	if '-200912' in filename or 'pagecounts-20100101-00' in filename:
-		useold = True
-	else:
-		useold = False
+def addResults(date):
+	global useold
 	global hitcount
 	def doQuery(titlelist):
 		cond = ','.join([repr(h) for h in titlelist])
