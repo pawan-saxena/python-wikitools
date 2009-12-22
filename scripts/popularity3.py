@@ -212,10 +212,10 @@ def addResults(date):
 			hits[hc] = [title]
 	del hitcount
 	for group in hits:
-		while len(hits[group]) > 1000:
-			titles = hits[group][0:1000]
+		while len(hits[group]) > 2500:
+			titles = hits[group][0:2500]
 			doQuery(titles)
-			del hits[group][0:1000]
+			del hits[group][0:2500]
 		doQuery(hits[group])
 	db.close()
 	
