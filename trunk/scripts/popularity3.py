@@ -100,10 +100,12 @@ def main():
 		makeResults()
 
 def processPage(filename, lists):
+	useold = True
 	if '-200912' in filename or 'pagecounts-20100101-00' in filename:
 		proc = subprocess.Popen(['/home/alexz/scripts/processpage', filename, 'pagelist'+lists, 'redirs'+lists], stdout=subprocess.PIPE)
 	else:
 		proc = subprocess.Popen(['/home/alexz/scripts/processpage2', filename, 'pagelist'+lists, 'redirs'+lists], stdout=subprocess.PIPE)
+		useold = False
 	out = proc.stdout
 	while True:
 		line = out.readline()
@@ -113,7 +115,10 @@ def processPage(filename, lists):
 			else:
 				time.sleep(0.1)
 				continue
-		(title, hits) = line.rstrip('\n').split(' | ', 1)
+		if useold:
+			(title, hits) = line.rstrip('\n').split(' - ', 1)
+		else: 
+			(title, hits) = line.rstrip('\n').split(' | ', 1)
 		if title in hitcount:
 			hitcount[title] += int(hits)		
 		else:
