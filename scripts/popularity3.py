@@ -4,7 +4,6 @@ import os
 import datetime
 import urllib
 import httplib
-import hashlib
 import MySQLdb
 from MySQLdb import cursors
 import sys
@@ -101,7 +100,10 @@ def main():
 		makeResults()
 
 def processPage(filename, lists):
-	proc = subprocess.Popen(['/home/alexz/scripts/processpage', filename, 'pagelist'+lists, 'redirs'+lists], stdout=subprocess.PIPE)
+	if '-200912' in filename or 'pagecounts-20100101-00' in filename:
+		proc = subprocess.Popen(['/home/alexz/scripts/processpage', filename, 'pagelist'+lists, 'redirs'+lists], stdout=subprocess.PIPE)
+	else:
+		proc = subprocess.Popen(['/home/alexz/scripts/processpage2', filename, 'pagelist'+lists, 'redirs'+lists], stdout=subprocess.PIPE)
 	out = proc.stdout
 	while True:
 		line = out.readline()
@@ -111,11 +113,11 @@ def processPage(filename, lists):
 			else:
 				time.sleep(0.1)
 				continue
-		(hash, hits) = line.rstrip('\n').split(' - ', 1)
-		if hash in hitcount:
-			hitcount[hash] += int(hits)		
+		(title, hits) = line.rstrip('\n').split(' | ', 1)
+		if title in hitcount:
+			hitcount[title] += int(hits)		
 		else:
-			hitcount[hash] = int(hits)
+			hitcount[title] = int(hits)
 	os.remove(filename)
 	
 def handleMissedRun(cur, last):
@@ -179,31 +181,30 @@ def checkExist(testurl):
 		
 def addResults(date):
 	global hitcount
-	def doQuery(hashlist):
-		cond = ','.join([repr(h) for h in hashlist])
+	def doQuery(titlelist):
+		cond = ','.join([repr(h) for h in titlelist])
 		q = query % (table, group, cond)
 		c.execute(q)
-	query = "UPDATE %s SET hits=hits+%d WHERE hash IN (%s)"
+	query = "UPDATE %s SET hits=hits+%d WHERE title IN (%s)"
 	db = MySQLdb.connect(host="sql", read_default_file="/home/alexz/.my.cnf", db='u_alexz')
 	c = db.cursor()
-	c.execute("SET autocommit=0")
 	if date.day == 1 and date.hour == 0:
 		date = date-datetime.timedelta(hours=1)
 	table = date.strftime('pop_%b%y')
 	hits = {}
-	for hash in hitcount:
-		hc = hitcount[hash]
+	for title in hitcount:
+		hc = hitcount[title]
 		if hc == 0:
 			continue 
 		if hc in hits:
-			hits[hc].append(hash)
+			hits[hc].append(title)
 		else:
-			hits[hc] = [hash]
+			hits[hc] = [title]
 	del hitcount
 	for group in hits:
 		while len(hits[group]) > 1000:
-			hashes = hits[group][0:1000]
-			doQuery(hashes)
+			titles = hits[group][0:1000]
+			doQuery(titles)
 			del hits[group][0:1000]
 		doQuery(hits[group])
 	db.close()
@@ -332,18 +333,16 @@ def makeTempTables():
 		
 	query1 = """CREATE TABLE `%s` (
 		`title` varchar(255) collate latin1_bin NOT NULL,
-		`hash` varchar(32) NOT NULL,
 		`hits` int(10) NOT NULL DEFAULT '0',
 		`project_assess` text NOT NULL,
 		UNIQUE KEY `title` (`title`),
-		UNIQUE KEY `hash` (`hash`),
 		KEY `hits` (`hits`),
 		FULLTEXT KEY `project_asssess` (`project_assess`)
 		) ENGINE=MyISAM ROW_FORMAT=DYNAMIC""" % (table)
 	query2 = """CREATE TABLE `redirect_map` (
-		`target_hash` varchar(32) NOT NULL,
-		`rd_hash` varchar(32) NOT NULL,
-		PRIMARY KEY  (`rd_hash`)
+		`from_title` varchar(255) NOT NULL,
+		`to_title` varchar(255) NOT NULL,
+		PRIMARY KEY  (`to_title`)
 		) ENGINE=InnoDB;"""
 	cursor.execute("START TRANSACTION")
 	cursor.execute(query1)
@@ -351,7 +350,7 @@ def makeTempTables():
 	cursor.execute("COMMIT")
 	db.close()
 	
-hashlist = set()
+titlelist = set()
 def setupProject(project, abbrv):
 	site = wiki.Wiki()
 	site.login(settings.bot, settings.botpass)
@@ -360,15 +359,15 @@ def setupProject(project, abbrv):
 	table = date.strftime('pop_%b%y')
 	db = MySQLdb.connect(host="sql-s1", read_default_file="/home/alexz/.my.cnf")
 	cursor = db.cursor()
-	projecthashes = set()
+	projecttitles = set()
 	project = project.replace(' ', '_')
 	types = ['FA', 'FL', 'A', 'GA', 'B', 'C', 'start', 'stub', 'list', 'image', 'portal', 'category', 'disambig', 'template', 'unassessed', 'blank', 'non-article']
-	insertquery = 'INSERT INTO u_alexz.'+table+' (title, hash, project_assess) VALUES( %s, %s, %s )'
-	updatequery = 'UPDATE u_alexz.'+table+' SET project_assess=CONCAT(project_assess,",",%s) WHERE hash=%s'
+	insertquery = 'INSERT INTO u_alexz.'+table+' (title, project_assess) VALUES( %s, %s )'
+	updatequery = 'UPDATE u_alexz.'+table+' SET project_assess=CONCAT(project_assess,",",%s) WHERE title=%s'
 	selectquery = """SELECT page_namespace-1, page_title, SUBSTRING_INDEX(clB.cl_to, '-', 1) FROM enwiki_p.page 
 		JOIN enwiki_p.categorylinks AS clA ON page_id=clA.cl_from 
 		LEFT JOIN enwiki_p.categorylinks AS clB ON page_id=clB.cl_from AND clB.cl_to LIKE "%%-importance_"""+project+"""_articles"
-		WHERE clA.cl_to=%s """
+		WHERE clA.cl_to=%s AND page_is_redirect=0 """
 	for type in types:
 		if type == "unassessed":
 			cat = "Category:Unassessed "+project+" articles"
@@ -392,22 +391,21 @@ def setupProject(project, abbrv):
 			if title[0] != 0:
 				p = page.Page(site, realtitle, check=False, namespace=title[0])
 				realtitle = p.title.encode('utf8')
-			hashmd5 = hashlib.md5(realtitle).hexdigest()
-			if hashmd5 in projecthashes:
+			if realtitle in projecttitles:
 				continue
 			if title[2] is None:
 				project_assess = "'%s':('%s',None)" % (abbrv, type)
 			else:
 				project_assess = "'%s':('%s','%s')" % (abbrv, type, title[2])
-			if hashmd5 in hashlist:
-				bits = (project_assess, hashmd5)
+			if realtitle in titlelist:
+				bits = (project_assess)
 				cursor.execute(updatequery, bits)
 			else:
-				hashlist.add(hashmd5)
-				projecthashes.add(hashmd5)			
-				bits = (realtitle, hashmd5, project_assess)
+				titlelist.add(realtitle)
+				projecttitles.add(realtitle)			
+				bits = (realtitle, project_assess)
 				cursor.execute(insertquery, bits)	
-	del projecthashes
+	del projecttitles
 	db.close()
 	
 def addRedirects():
@@ -415,8 +413,8 @@ def addRedirects():
 	cursor = db.cursor()
 	date = datetime.datetime.utcnow()+datetime.timedelta(days=15)	
 	table = date.strftime('pop_%b%y')
-	query = """INSERT IGNORE INTO u_alexz.redirect_map (rd_hash, target_hash)
-		SELECT DISTINCT(MD5(enwiki_p.page.page_title)), u_alexz.%(table)s.hash
+	query = """INSERT IGNORE INTO u_alexz.redirect_map (from_title, to_title)
+		SELECT DISTINCT(enwiki_p.page.page_title), u_alexz.%(table)s.title
 		FROM u_alexz.%(table)s
 		INNER JOIN (enwiki_p.redirect, enwiki_p.page)
 		ON (u_alexz.%(table)s.title=enwiki_p.redirect.rd_title AND enwiki_p.redirect.rd_from=enwiki_p.page.page_id)
@@ -433,7 +431,7 @@ def makeDataPages():
 	db = MySQLdb.connect(host="sql-s1", db='u_alexz', read_default_file="/home/alexz/.my.cnf")
 	cursor = db.cursor(cursors.SSCursor)
 	f = open('pagelist'+lists, 'ab')
-	cursor.execute('SELECT DISTINCT hash FROM '+table)
+	cursor.execute('SELECT DISTINCT title FROM '+table)
 	while True:
 		p = cursor.fetchone()
 		if p:
@@ -444,7 +442,7 @@ def makeDataPages():
 	f.close()
 	cursor.close()
 	cursor = db.cursor(cursors.SSCursor)
-	cursor.execute('SELECT DISTINCT rd_hash, target_hash FROM redirect_map')
+	cursor.execute('SELECT DISTINCT from_title, to_title FROM redirect_map')
 	f = open('redirs'+lists, 'ab')
 	while True:
 		row = cursor.fetchone()
@@ -471,7 +469,6 @@ def moveTables():
 	cursor.execute('COMMIT')	
 	db2 = MySQLdb.connect(host="sql", db='u_alexz', read_default_file="/home/alexz/.my.cnf")
 	c2 = db2.cursor()
-	c2.execute('ALTER TABLE '+table+' DROP INDEX title')
 		
 if __name__ == '__main__':
 	if len(sys.argv) > 1 and sys.argv[1] == '--setup':
