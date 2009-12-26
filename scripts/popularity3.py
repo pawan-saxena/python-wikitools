@@ -151,11 +151,15 @@ def getFile(date):
 	end = '.gz'
 	pos = 3
 	for x in range(12):
-		mid = '0000'
-		mid[pos] = '1' if x < 8 else '2'
-		if x > 3:
-			mid[1] = '5'
-		
+		m = '1' if x < 8 else '2'
+		mid = ''
+		for y in range(4):
+			if x > 3 and y == 1:
+				mid+= '5'
+			elif y == pos:
+				mid+= '1'
+			else:
+				mid+= '0'
 		if checkExist(main+start+mid+end):
 			url += main+start+mid+end
 			filename = start+mid+end
