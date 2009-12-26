@@ -147,6 +147,8 @@ def getFile(date):
 	if checkExist(main+page):
 		url += main + page
 		filename = page
+		urllib.urlretrieve(url, filename)
+		return filename
 	start = date.strftime('pagecounts-%Y%m%d-%H')
 	end = '.gz'
 	pos = 3
