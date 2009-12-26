@@ -142,30 +142,27 @@ def handleMissedRun(cur, last):
 	
 def getFile(date):
 	page = date.strftime('pagecounts-%Y%m%d-%H0000.gz')
-	altpage = date.strftime('pagecounts-%Y%m%d-%H0001.gz')
-	altpageb = date.strftime('pagecounts-%Y%m%d-%H0500.gz')
-	altpagec = date.strftime('pagecounts-%Y%m%d-%H0501.gz')
 	url = "http://mituzas.lt"
 	main = "/wikistats/"
-	archive = "/wikistats/archive/%d/%s/" % (date.year, str(date.month).zfill(2))
 	if checkExist(main+page):
 		url += main + page
 		filename = page
-	elif checkExist(main+altpage):
-		url += main + altpage
-		filename = altpage
-	elif checkExist(main+altpageb):
-		url += main + altpageb
-		filename = altpageb
-	elif checkExist(main+altpagec):
-		url += main + altpagec
-		filename = altpagec
-	elif checkExist(archive+page):
-		url += archive + page
-		filename = page
-	elif checkExist(archive+altpage):
-		url += archive + altpage
-		filename = altpage
+	start = date.strftime('pagecounts-%Y%m%d-%H')
+	end = '.gz'
+	pos = 3
+	for x in range(12):
+		mid = '0000'
+		mid[pos] = '1' if x < 8 else '2'
+		if x > 3:
+			mid[1] = '5'
+		
+		if checkExist(main+start+mid+end):
+			url += main+start+mid+end
+			filename = start+mid+end
+			break
+		pos-=1
+		if pos < 0:
+			pos = 3
 	else:
 		unlock()
 		raise Exception("File doesn't exist: "+str(date))
