@@ -159,7 +159,7 @@ def getFile(date):
 			if x > 3 and y == 1:
 				mid+= '5'
 			elif y == pos:
-				mid+= '1'
+				mid+= m
 			else:
 				mid+= '0'
 		if checkExist(main+start+mid+end):
