@@ -411,7 +411,7 @@ def setupProject(project, abbrv):
 			else:
 				project_assess = "'%s':('%s','%s')" % (abbrv, type, title[2])
 			if realtitle in titlelist:
-				bits = (project_assess)
+				bits = (project_assess, realtitle)
 				cursor.execute(updatequery, bits)
 			else:
 				titlelist.add(realtitle)
