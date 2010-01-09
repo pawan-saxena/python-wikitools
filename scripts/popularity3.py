@@ -115,7 +115,7 @@ def processPage(filename, lists):
 			redirs = 'redirs'+lists+'.'+str(pages)
 		except OSError:
 			redirs = '/dev/null/'
-		if pagelist == '/dev/null/' and redirs == '/dev/null':
+		if pagelist == '/dev/null/' and redirs == '/dev/null/':
 			break
 		proc = subprocess.Popen(['/home/alexz/scripts/processpage', filename, pagelist, redirs], stdout=subprocess.PIPE)
 		out = proc.stdout
