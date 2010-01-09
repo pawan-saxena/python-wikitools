@@ -57,7 +57,6 @@ importancetemplates = {'Top':'{{Top-importance}}', 'High':'{{High-importance}}',
 # * --manual=page - manually run the given datapage
 	
 hitcount = {}
-useold = True
 
 def main():
 	os.chdir('/home/alexz/popularity/')
@@ -101,30 +100,38 @@ def main():
 		makeResults()
 
 def processPage(filename, lists):
-	global useold
-	useold = True
-	if '-200912' in filename or 'pagecounts-20100101-00' in filename:
-		proc = subprocess.Popen(['/home/alexz/scripts/processpage', filename, 'pagelist'+lists, 'redirs'+lists], stdout=subprocess.PIPE)
-	else:
-		proc = subprocess.Popen(['/home/alexz/scripts/processpage2', filename, 'pagelist'+lists, 'redirs'+lists], stdout=subprocess.PIPE)
-		useold = False
-	out = proc.stdout
+	pages = 0
+	redirs = 0
 	while True:
-		line = out.readline()
-		if not line:
-			if proc.poll() is not None:
-				break
-			else:
-				time.sleep(0.1)
-				continue
-		if useold:
-			(title, hits) = line.rstrip('\n').split(' - ', 1)
-		else: 
+		pages+=1
+		redirs+=1
+		try:
+			os.stat('pagelist'+lists+'.'+str(pages))
+			pagelist = 'pagelist'+lists+'.'+str(pages)
+		except OSError:
+			pagelist = '/dev/null/'
+		try:
+			os.stat('redirs'+lists+'.'+str(pages))
+			redirs = 'redirs'+lists+'.'+str(pages)
+		except OSError:
+			redirs = '/dev/null/'
+		if pagelist == '/dev/null/' and redirs == '/dev/null':
+			break
+		proc = subprocess.Popen(['/home/alexz/scripts/processpage', filename, pagelist, redirs], stdout=subprocess.PIPE)
+		out = proc.stdout
+		while True:
+			line = out.readline()
+			if not line:
+				if proc.poll() is not None:
+					break
+				else:
+					time.sleep(0.01)
+					continue
 			(title, hits) = line.rstrip('\n').split(' | ', 1)
-		if title in hitcount:
-			hitcount[title] += int(hits)		
-		else:
-			hitcount[title] = int(hits)
+			if title in hitcount:
+				hitcount[title] += int(hits)		
+			else:
+				hitcount[title] = int(hits)
 	os.remove(filename)
 	
 def handleMissedRun(cur, last):
@@ -190,15 +197,12 @@ def checkExist(testurl):
 		return True
 		
 def addResults(date):
-	global useold
 	global hitcount
 	def doQuery(titlelist):
 		cond = ','.join([repr(h) for h in titlelist])
 		q = query % (table, group, cond)
 		c.execute(q)
 	query = "UPDATE %s SET hits=hits+%d WHERE title IN (%s)"
-	if useold:
-		query = "UPDATE %s SET hits=hits+%d WHERE hash IN (%s)"
 	db = MySQLdb.connect(host="sql", read_default_file="/home/alexz/.my.cnf", db='u_alexz')
 	c = db.cursor()
 	if date.day == 1 and date.hour == 0:
@@ -443,24 +447,39 @@ def makeDataPages():
 	lists = date.strftime('.%b%y')
 	db = MySQLdb.connect(host="sql-s1", db='u_alexz', read_default_file="/home/alexz/.my.cnf")
 	cursor = db.cursor(cursors.SSCursor)
-	f = open('pagelist'+lists, 'ab')
-	cursor.execute('SELECT DISTINCT title FROM '+table)
+	f = open('pagelist'+lists+'.1', 'ab')
+	cursor.execute('SELECT title FROM '+table)
+	count = 0
+	listnum = 1
 	while True:
 		p = cursor.fetchone()
 		if p:
 			f.write(p[0]+"\n")
-			
+			count+=1
+			if count == 1000000:
+				count = 0
+				listnum +=1
+				f.close()
+				f = open('pagelist'+lists+'.'+str(listnum), 'ab')
 		else:
 			break
 	f.close()
 	cursor.close()
 	cursor = db.cursor(cursors.SSCursor)
-	cursor.execute('SELECT DISTINCT from_title, to_title FROM redirect_map')
-	f = open('redirs'+lists, 'ab')
+	cursor.execute('SELECT from_title, to_title FROM redirect_map')
+	f = open('redirs'+lists+'.1', 'ab')
+	count = 0
+	listnum = 1
 	while True:
 		row = cursor.fetchone()
 		if row:
-			f.write('%s=%s\n' % (row[0], row[1]))
+			f.write('%s|%s\n' % (row[0], row[1]))
+			count+=1
+			if count == 500000:
+				count = 0
+				listnum +=1
+				f.close()
+				f = open('redirs'+lists+'.'+str(listnum), 'ab')
 		else:
 			break
 	f.close()
