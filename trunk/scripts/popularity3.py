@@ -101,10 +101,10 @@ def main():
 
 def processPage(filename, lists):
 	pages = 0
-	redirs = 0
+	redirpage = 0
 	while True:
 		pages+=1
-		redirs+=1
+		redirpage+=1
 		try:
 			os.stat('pagelist'+lists+'.'+str(pages))
 			pagelist = 'pagelist'+lists+'.'+str(pages)
