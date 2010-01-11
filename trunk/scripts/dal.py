@@ -230,7 +230,7 @@ def getTFA(TFA):
 	title = TFAtitle.search(text).group(1)
 	TFAtext = TFAreg.sub(r'\1', text)
 	TFAtext = TFAtext.rsplit("('''", 1)[0]
-	if len(TFAtext < 10):
+	if len(TFAtext) < 10:
 		TFAtext = TFAregalt.sub(r'\1', text)
 		TFAtext = TFAtext.rsplit("('''", 1)[0]
 	pt = page.Page(enwiki, title)
