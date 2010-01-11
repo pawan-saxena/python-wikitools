@@ -6,6 +6,7 @@ from email.MIMEText import MIMEText
 import settings, datetime, re, htmlentitydefs, urllib, codecs, smtplib, sys
 
 TFAreg = re.compile(".*?\n([^\n]*'''\[\[.*?)\|more\.\.\.\]\]'''\)", re.I|re.S)
+TFAregalt = re.compile("([^\n]*'''\[\[.*?)\|more\.\.\.\]\]'''\)", re.I|re.S)
 TFAtitle = re.compile("\('''\[\[(.*?)\|more\.\.\.\]\]'''")
 anivreg = re.compile("'''\s?\"?\[\[(.*?)\]\][a-z]?\"?[\.\,]?\s?'''")
 anivyear = re.compile("\{\{\*mp\}\}\s*\[\[(?P<year>[0-9]*)(?P<suf> AD| CE| BC| BCE)?\]\] +&ndash;")
@@ -227,10 +228,13 @@ def getTFA(TFA):
 		raise Exception("ERROR: TFA doesn't exist O_o")
 	text = p.getWikiText(expandtemplates=True)
 	title = TFAtitle.search(text).group(1)
-	text = TFAreg.sub(r'\1', text)
-	text = text.rsplit("('''", 1)[0]
+	TFAtext = TFAreg.sub(r'\1', text)
+	TFAtext = TFAtext.rsplit("('''", 1)[0]
+	if len(TFAtext < 10):
+		TFAtext = TFAregalt.sub(r'\1', text)
+		TFAtext = TFAtext.rsplit("('''", 1)[0]
 	pt = page.Page(enwiki, title)
-	TFA = {pt.title: killFormatting(text).strip()}
+	TFA = {pt.title: killFormatting(TFAtext).strip()}
 	return TFA
 	
 def killFormatting(text):
