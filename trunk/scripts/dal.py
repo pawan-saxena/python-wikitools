@@ -9,7 +9,7 @@ TFAreg = re.compile(".*?\n([^\n]*'''\[\[.*?)\|more\.\.\.\]\]'''\)", re.I|re.S)
 TFAregalt = re.compile("([^\n]*'''\[\[.*?)\|more\.\.\.\]\]'''\)", re.I|re.S)
 TFAtitle = re.compile("\('''\[\[(.*?)\|more\.\.\.\]\]'''")
 anivreg = re.compile("'''\s?\"?\[\[(.*?)\]\][a-z]?\"?[\.\,]?\s?'''")
-anivyear = re.compile("\{\{\*mp\}\}\s*\[\[(?P<year>[0-9]*)(?P<suf> AD| CE| BC| BCE)?\]\] +&ndash;")
+anivyear = re.compile("\{\{\*mp\}\}\s*\[\[(?P<year>[0-9]*)(?P<suf> AD| CE| BC| BCE)?\]\] +(&ndash;|–)")
 anivpicture = re.compile("\([^\)]*?pictured\)", re.I)
 quotename = re.compile("~ .*?\[\[(.*?)\]\].*")
 
@@ -199,7 +199,7 @@ def getanivs(SA):
 	if not p.exists:
 		raise Exception("ERROR: Selected Aniv. doesn't exist O_o")
 	text = p.getWikiText()
-	text = re.split('\<div style\=\"float\:right\; ?margin\-left\:(?:0\.5|1)em;?">', text)[1]
+	text = re.split('\<div style\=\"(?:margin\-left\:(?:0\.5|1)em;? ?|float\:right\;? ?){2}">', text)[1]
 	text = comments.sub('', text)
 	lines = text.splitlines()		
 	lines2 = []
