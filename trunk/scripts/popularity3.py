@@ -199,7 +199,7 @@ def checkExist(testurl):
 def addResults(date):
 	global hitcount
 	def doQuery(titlelist):
-		cond = "'"+"','".join(titlelist)+"'"
+		cond = "'"+"','".join([t.replace("'", "\'") for t in titlelist])+"'"
 		q = query % (table, group, cond)
 		c.execute(q)
 	query = "UPDATE %s SET hits=hits+%d WHERE title IN (%s)"
