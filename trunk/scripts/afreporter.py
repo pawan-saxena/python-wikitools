@@ -345,6 +345,7 @@ def reportUser(u, filter=None, hit=None):
 		line = "\n* {{IPvandal|%s}} - " % (username)
 	else:
 		line = "\n* {{Vandal|%s}} - " % (username)
+	line = line.encode('utf8')
 	line += reason+" ~~~~"
 	try:
 		AIV.edit(appendtext=line, summary=editsum)
