@@ -66,7 +66,7 @@ def checkDabs(s):
 			p = page.Page(site, t)
 			if p.exists and p.namespace < 2:
 				return p.title
-		elif max < 5:
+		if max < 5:
 			max += 1
 		else:
 			return False
