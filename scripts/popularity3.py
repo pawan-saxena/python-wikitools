@@ -330,6 +330,7 @@ def setup():
 		abbrv = project
 		name = projectlist[project].cat_name
 		setupProject(name, abbrv)
+	getBLPs()
 	addRedirects()
 	makeDataPages()
 	moveTables()
@@ -414,16 +415,45 @@ def setupProject(project, abbrv):
 				project_assess = "'%s':('%s',None)" % (abbrv, type)
 			else:
 				project_assess = "'%s':('%s','%s')" % (abbrv, type, title[2])
+			projecttitles.add(realtitle)
 			if realtitle in titlelist:
 				bits = (project_assess, realtitle)
 				cursor.execute(updatequery, bits)
 			else:
 				titlelist.add(realtitle)
-				projecttitles.add(realtitle)			
 				bits = (realtitle, project_assess)
 				cursor.execute(insertquery, bits)	
 	del projecttitles
 	db.close()
+	
+def getBLPs():
+	site = wiki.Wiki()
+	site.login(settings.bot, settings.botpass)
+	site.setMaxlag(-1)
+	date = datetime.datetime.utcnow()+datetime.timedelta(days=15)	
+	table = date.strftime('pop_%b%y')
+	db = MySQLdb.connect(host="sql-s1", read_default_file="/home/alexz/.my.cnf")
+	cursor = db.cursor()
+	project = project.replace(' ', '_')
+	insertquery = 'INSERT INTO u_alexz.'+table+' (title, project_assess) VALUES( %s, %s )'
+	updatequery = 'UPDATE u_alexz.'+table+' SET project_assess=CONCAT(project_assess,",",%s) WHERE title=%s'
+	selectquery = """SELECT page_title FROM enwiki_p.page 
+		JOIN enwiki_p.categorylinks ON page_id=cl_from 
+		WHERE cl_to='Living_people' AND page_namespace=0 AND page_is_redirect=0 """
+	cursor.execute(selectquery, (catname))
+	pagesincat = cursor.fetchall()
+	for title in pagesincat:			
+		realtitle = title[0].decode('utf8').encode('utf8')
+		if title[2] is None:
+		project_assess = "wpblp':(None,None)" % (abbrv, type)
+		if realtitle in titlelist:
+			bits = (project_assess, realtitle)
+			cursor.execute(updatequery, bits)
+		else:
+			titlelist.add(realtitle)
+			bits = (realtitle, project_assess)
+			cursor.execute(insertquery, bits)	
+	db.close()	
 	
 def addRedirects():
 	db = MySQLdb.connect(host="sql-s1", read_default_file="/home/alexz/.my.cnf")
