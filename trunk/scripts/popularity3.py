@@ -434,7 +434,6 @@ def getBLPs():
 	table = date.strftime('pop_%b%y')
 	db = MySQLdb.connect(host="sql-s1", read_default_file="/home/alexz/.my.cnf")
 	cursor = db.cursor()
-	project = project.replace(' ', '_')
 	insertquery = 'INSERT INTO u_alexz.'+table+' (title, project_assess) VALUES( %s, %s )'
 	updatequery = 'UPDATE u_alexz.'+table+' SET project_assess=CONCAT(project_assess,",",%s) WHERE title=%s'
 	selectquery = """SELECT page_title FROM enwiki_p.page 
@@ -442,10 +441,9 @@ def getBLPs():
 		WHERE cl_to='Living_people' AND page_namespace=0 AND page_is_redirect=0 """
 	cursor.execute(selectquery, (catname))
 	pagesincat = cursor.fetchall()
+	project_assess = "wpblp':(None,None)"
 	for title in pagesincat:			
 		realtitle = title[0].decode('utf8').encode('utf8')
-		if title[2] is None:
-		project_assess = "wpblp':(None,None)" % (abbrv, type)
 		if realtitle in titlelist:
 			bits = (project_assess, realtitle)
 			cursor.execute(updatequery, bits)
