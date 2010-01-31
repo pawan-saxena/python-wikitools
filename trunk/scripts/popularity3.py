@@ -47,9 +47,9 @@ articletypes = {'unassessed':'{{unassessed-Class}}', 'file':'{{File-Class}}',
 	'C':'{{C-Class}}', 'B':'{{B-Class}}', 'GA':'{{GA-Class}}', 'A':'{{A-Class}}',
 	'FL':'{{FL-Class}}', 'FA':'{{FA-Class}}'} # This should cover most instances, some projects have some odd ones
 
-importancetemplates = {'Top':'{{Top-importance}}', 'High':'{{High-importance}}', 'Mid':'{{Mid-importance}}',
-	'Low':'{{Low-importance}}', 'Bottom':'{{Bottom-importance}}', 'No':'{{No-importance}}', 'NA':'{{NA-importance}}',
-	'Unknown':'{{-importance}}', None:'{{-importance}}' }
+importancetemplates = {'top':'{{Top-importance}}', 'high':'{{High-importance}}', 'mid':'{{Mid-importance}}',
+	'low':'{{Low-importance}}', 'bottom':'{{Bottom-importance}}', 'no':'{{No-importance}}', 'na':'{{NA-importance}}',
+	'unknown':'{{-importance}}', None:'{{-importance}}' }
 	
 # Manual run options:
 # * --setup - runs setup
@@ -307,6 +307,8 @@ def makeResults(date=None):
 			table+= "| " + template + "\n"
 			if useImportance:
 				imp = project_assess[proj][1]
+				if type(imp).__name__=='str':
+					imp = imp.lower()
 				tem = importancetemplates[imp]
 				table+= "| " + tem + "\n"
 		table += "|}"
@@ -439,7 +441,7 @@ def getBLPs():
 	selectquery = """SELECT page_title FROM enwiki_p.page 
 		JOIN enwiki_p.categorylinks ON page_id=cl_from 
 		WHERE cl_to='Living_people' AND page_namespace=0 AND page_is_redirect=0 """
-	cursor.execute(selectquery, (catname))
+	cursor.execute(selectquery)
 	pagesincat = cursor.fetchall()
 	project_assess = "wpblp':(None,None)"
 	for title in pagesincat:			
