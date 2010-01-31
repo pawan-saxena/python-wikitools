@@ -24,7 +24,13 @@ def main():
 	('s4', 'commonswiki_p'), ('s5', 'dewiki_p'), ('s6', 'frwiki_p')]
 	for s in servers:
 		lagcheck(s[0], s[1])
-		lagcheck(s[0]+'-fast')
+		lagcheck(s[0]+'-fast')		
+	try:
+		db = MySQLdb.connect(db='u_alexz',host="sql",read_default_file="/home/alexz/.my.cnf")
+		cursor = db.cursor()
+		serverup('sql')
+	except:
+		serverdown('sql')
 		
 def highlag(server):
 	f = open('/home/alexz/public_html/messages/'+server+'-replag', 'wb')
