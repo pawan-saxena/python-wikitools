@@ -450,7 +450,7 @@ def getBLPs():
 		WHERE cl_to='Living_people' AND page_namespace=0 AND page_is_redirect=0 """
 	cursor.execute(selectquery)
 	pagesincat = cursor.fetchall()
-	project_assess = "wpblp':(None,None)"
+	project_assess = "'wpblp':(None,None)"
 	for title in pagesincat:			
 		realtitle = title[0].decode('utf8').encode('utf8')
 		if realtitle in titlelist:
