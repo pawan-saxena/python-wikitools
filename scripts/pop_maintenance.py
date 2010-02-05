@@ -34,7 +34,7 @@ def inner(table, old, new, domerge=False):
 	print str(rows), "rows to update"
 	index = 0
 	update = """UPDATE %s SET project_assess=REPLACE(project_assess,"%s","%s") 
-	WHERE project_assess LIKE "%%'%s':%%" """ % (table, old, new)
+	WHERE project_assess LIKE "%%'%s':%%" """ % (table, old, new, old)
 	if domerge: # Ideally the redundant entries would be removed, but that would require doing 1 row at a time
 		update+= """ AND project_assess NOT LIKE  "%%'%s':%%" """ % new
 	update+= " LIMIT 1000"
