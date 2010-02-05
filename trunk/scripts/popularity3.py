@@ -30,7 +30,7 @@ class ProjectLister(object):
 			
 class Project(object):
 
-	__slots__ = ('abbrv', 'name', 'cat_name', 'listpage', 'limit', 'month_added')
+	__slots__ = ('abbrv', 'name', 'cat_name', 'listpage', 'limit', 'month_added', 'month_removed')
 
 	def __init__(self, row):
 		self.abbrv = row[0]
@@ -39,8 +39,9 @@ class Project(object):
 		self.listpage = row[3]
 		self.limit = row[4]
 		self.month_added = row[5]
+		self.month_removed = row[6]
 
-articletypes = {'unassessed':'{{unassessed-Class}}', 'file':'{{File-Class}}',
+articletypes = {'unassessed':'{{unassessed-Class}}', 'file':'{{File-Class}}', 'book':'{{Book-Class}}',
 	'template':'{{template-Class}}', 'category':'{{category-Class}}', 'disambig':'{{disambig-Class}}',
 	'portal':'{{portal-Class}}', 'list':'{{list-Class}}', 'image':'{{File-Class}}',
 	'non-article':'{{NA-Class}}', 'blank':'{{NA-Class}}', 'stub':'{{stub-Class}}', 'start':'{{start-Class}}',
@@ -261,6 +262,10 @@ def makeResults(date=None):
 		diff = projects[proj].month_added - date
 		if diff.days > 0: # The project was added after we started collecting data for this month
 			continue
+		if projects[proj].month_removed: 
+			diff = projects[proj].month_removed - date
+			if diff.days <= 0: # The project was removed before or during this month
+				continue
 		target = page.Page(site, projects[proj].listpage, namespace=4)
 		section = 0
 		if target.exists:
@@ -329,6 +334,8 @@ def setup():
 	projectlist = lister.projects
 	makeTempTables()
 	for project in projectlist.keys():
+		if projectlist[project].month_removed:
+			continue
 		abbrv = project
 		name = projectlist[project].cat_name
 		setupProject(name, abbrv)
