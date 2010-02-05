@@ -381,7 +381,7 @@ def setupProject(project, abbrv):
 	cursor = db.cursor()
 	projecttitles = set()
 	project = project.replace(' ', '_')
-	types = ['FA', 'FL', 'A', 'GA', 'B', 'C', 'start', 'stub', 'list', 'image', 'portal', 'category', 'disambig', 'template', 'unassessed', 'blank', 'non-article']
+	types = ['FA', 'FL', 'A', 'GA', 'B', 'C', 'start', 'stub', 'list', 'image', 'portal', 'category', 'book', 'disambig', 'template', 'unassessed', 'blank', 'non-article']
 	insertquery = 'INSERT INTO u_alexz.'+table+' (title, project_assess) VALUES( %s, %s )'
 	updatequery = 'UPDATE u_alexz.'+table+' SET project_assess=CONCAT(project_assess,",",%s) WHERE title=%s'
 	selectquery = """SELECT page_namespace-1, page_title, SUBSTRING_INDEX(clB.cl_to, '-', 1) FROM enwiki_p.page 
