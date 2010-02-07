@@ -4,6 +4,7 @@ from ircbot import SingleServerIRCBot
 from wikitools import *
 import settings
 import threading
+import thread
 import time
 import sys
 import MySQLdb
@@ -18,6 +19,8 @@ except:
 	import simplejson as json
 
 connections = {}
+IRCActive = False
+LogActive = False
 
 site = wiki.Wiki()
 site.setMaxlag(-1)
@@ -78,22 +81,15 @@ class CommandBot(SingleServerIRCBot):
 		self.channel = channel
 
 	def on_nicknameinuse(self, c, e):
-		c.nick(c.get_nickname() + "_")
-		raise KillException
-		return
+		thread.interrupt_main()
 
 	def on_welcome(self, c, e):
-		global connections
+		global connections, IRCActive
 		c.privmsg("NickServ", "identify "+settings.ircpass)
 		time.sleep(3)
 		c.join(self.channel)
 		connections['command'] = c
-		return
-
-	def on_pubmsg(self, c, e):
-		user = e.source()
-		if e.arguments()[0] == '&restart' and '@wikimedia/Mr.Z-man' in user:
-			sys.exit()
+		IRCActive = True
 		return
 
 class BotRunnerThread(threading.Thread):
@@ -106,6 +102,14 @@ class BotRunnerThread(threading.Thread):
 
 def sendToChannel(msg):
 	connections['command'].privmsg("#wikipedia-en-abuse-log", msg)
+	
+class StartupChecker(threading.Thread):
+	def run():
+		global IRCActive, LogActive
+		time.sleep(60)
+		if not IRCActive or not LogActive:
+			print "Init fail"
+			thread.interrupt_main()
 	
 immediate = set() 
 vandalism = set()
@@ -229,7 +233,9 @@ def logFromDB(lastid):
 	return ret	
 	
 def main():
-	global connections
+	global connections, LogActive
+	sc = StartupChecker()
+	sc.start()
 	getLists()
 	if not immediate or not vandalism:
 		raise Exception("Lists not initialised")
@@ -252,6 +258,7 @@ def main():
 	AIVreported = timedTracker(expiry=600)
 	titles = timedTracker() # this only reports to IRC for now
 	(lasttime, lastid) = getStart()
+	LogActive = True
 	while True:
 		if time.time() > listcheck+300:
 			getLists()
