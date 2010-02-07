@@ -104,7 +104,7 @@ def sendToChannel(msg):
 	connections['command'].privmsg("#wikipedia-en-abuse-log", msg)
 	
 class StartupChecker(threading.Thread):
-	def run():
+	def run(self):
 		global IRCActive, LogActive
 		time.sleep(60)
 		if not IRCActive or not LogActive:
