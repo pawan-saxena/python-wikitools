@@ -122,6 +122,7 @@ def main():
 				timestamp = aiinner['unreferenced'].strip()
 		# Remove or add templates as necessary
 		newtext = ''
+		timestamp = datetime.datetime.utcnow().strftime('%B %Y')
 		if blpunreftemp and ai and unreftemp:               # All 3
 			newtext = removeFromAI(aiinner, text)
 			newtext = removeUnref(newtext)
