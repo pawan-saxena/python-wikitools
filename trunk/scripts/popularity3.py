@@ -417,7 +417,7 @@ def setupProject(project, abbrv):
 			realtitle = title[1].decode('utf8').encode('utf8')
 			if title[0] != 0:
 				p = page.Page(site, realtitle, check=False, namespace=title[0])
-				realtitle = p.title.encode('utf8')
+				realtitle = p.title.encode('utf8').replace(' ', '_')
 			if realtitle in projecttitles:
 				continue
 			if title[2] is None:
