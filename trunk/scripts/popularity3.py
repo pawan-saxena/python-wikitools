@@ -13,6 +13,7 @@ import calendar
 import subprocess
 import time
 import locale
+import cPickle
 
 class ProjectLister(object):
 
@@ -60,6 +61,7 @@ importancetemplates = {'top':'{{Top-importance}}', 'high':'{{High-importance}}',
 hitcount = {}
 
 def main():
+	global hitcount
 	os.chdir('/home/alexz/popularity/')
 	lock()
 	manual = False
@@ -84,13 +86,25 @@ def main():
 	c.execute('SELECT last FROM last_run')
 	last = c.fetchone()[0]
 	db.close()
+	try:
+		cachefile = open('hitcount.data', 'rb')
+		hitcount = cPickle.load(cachefile)
+		cachefile.close()
+	except:
+		pass
 	if (todo - last).seconds > 3600 or (todo-last).days:
 		files = handleMissedRun(todo, last)
 	else:
 		files = [getFile(todo)]
 	for f in files:
 		processPage(f, lists)
-	addResults(todo)
+	if todo.hour == 0:
+		addResults(todo)
+		os.remove('hitcount.data')
+	else:
+		cachefile = open('hitcount.data', 'wb')
+		cPickle.dump(hitcount, cachefile, cPickle.HIGHEST_PROTOCOL)
+		cachefile.close()
 	db = MySQLdb.connect(host="sql", read_default_file="/home/alexz/.my.cnf", db='u_alexz')
 	c = db.cursor()
 	datestring = todo.isoformat(' ')
@@ -222,10 +236,25 @@ def addResults(date):
 	for group in hits:
 		while len(hits[group]) > 2500:
 			titles = hits[group][0:2500]
-			doQuery(titles)
-			del hits[group][0:2500]
+			try:
+				doQuery(titles)
+				del hits[group][0:2500]
+			except:
+				queryfailsafe(hits)
 		doQuery(hits[group])
 	db.close()
+	
+def queryfailsafe(hits):
+	hitcount = {}
+	for hc in hits:
+		group = hits[hc]
+		for page in group:
+			hitcount[page] = hc
+	cachefile = open('queryfail.data', 'wb')
+	cPickle.dump(hitcount, cachefile, cPickle.HIGHEST_PROTOCOL)
+	cachefile.close()
+	os.remove('hitcount.data')
+	sys.exit("Query failure!")
 	
 def lock():
 	f = open('pop.lock', 'r')
@@ -547,6 +576,17 @@ if __name__ == '__main__':
 		year = int(raw_input('Year: '))
 		d = datetime.date(month=month, year=year, day=1)
 		makeResults(d)
+	elif len(sys.argv) > 1 and sys.argv[1] = '--fix-query':
+		os.chdir('/home/alexz/popularity/')
+		lock()
+		month = int(raw_input('Month: '))
+		year = int(raw_input('Year: '))
+		d = datetime.date(month=month, year=year, day=5)
+		cachefile = open('queryfail.data', 'rb')
+		hitcount = cPickle.load(cachefile)
+		cachefile.close()
+		addResults(date)
+		unlock()
 	else:
 		main()
 	
