@@ -97,19 +97,20 @@ def main():
 	else:
 		files = [getFile(todo)]
 	for f in files:
-		processPage(f, lists)
-	if todo.hour == 0:
-		addResults(todo)
-		os.remove('hitcount.data')
-	else:
-		cachefile = open('hitcount.data', 'wb')
-		cPickle.dump(hitcount, cachefile, cPickle.HIGHEST_PROTOCOL)
-		cachefile.close()
+		processPage(f, lists)		
+	cachefile = open('hitcount.data', 'wb')
+	cPickle.dump(hitcount, cachefile, cPickle.HIGHEST_PROTOCOL)
+	cachefile.close()
 	db = MySQLdb.connect(host="sql", read_default_file="/home/alexz/.my.cnf", db='u_alexz')
 	c = db.cursor()
 	datestring = todo.isoformat(' ')
 	c.execute('UPDATE last_run SET last="'+datestring+'" WHERE 1')
 	unlock()
+	if todo.hour == 0:
+		lock(query=True)
+		addResults(todo)
+		os.remove('hitcount.data')
+		unlock(query=True)
 	next = todo + datetime.timedelta(hours=1)
 	if next.day == 1 and next.hour == 1:
 		makeResults()
@@ -256,18 +257,24 @@ def queryfailsafe(hits):
 	os.remove('hitcount.data')
 	sys.exit("Query failure!")
 	
-def lock():
-	f = open('pop.lock', 'r')
+def lock(query=False):
+	filename = 'pop.lock'
+	if query:
+		filename = 'query.lock'
+	f = open(filename, 'r')
 	l = f.readline().split('\n')[0]
 	if l != '0':
 		os.system('ps -Fp '+l)
 		raise Exception("Other process still running")
-	f = open('pop.lock', 'w')
+	f = open(filename, 'w')
 	f.write(str(os.getpid()))
 	f.close()
 	
-def unlock():	
-	f = open('pop.lock', 'w')
+def unlock(query=False):
+	filename = 'pop.lock'
+	if query:
+		filename = 'query.lock'	
+	f = open(filename, 'w')
 	f.write('0')
 	f.close()
 	
@@ -578,7 +585,7 @@ if __name__ == '__main__':
 		makeResults(d)
 	elif len(sys.argv) > 1 and sys.argv[1] = '--fix-query':
 		os.chdir('/home/alexz/popularity/')
-		lock()
+		lock(query=True)
 		month = int(raw_input('Month: '))
 		year = int(raw_input('Year: '))
 		d = datetime.date(month=month, year=year, day=5)
@@ -586,7 +593,7 @@ if __name__ == '__main__':
 		hitcount = cPickle.load(cachefile)
 		cachefile.close()
 		addResults(date)
-		unlock()
+		unlock(query=True)
 	else:
 		main()
 	
