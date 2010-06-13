@@ -1,0 +1,7 @@
+#summary Introduction to python-wikitools
+
+Thank you for your interest in wikitools. wikitools is a framework for MediaWiki bots written in Python. It is available as a python package (a collection of related modules) containing general tools for working with wikis, pages, and users on the wiki and retrieving data from the MediaWiki API. It is designed for use on sites running MediaWiki 1.14 and higher. 
+
+ * For information on downloading and installation, see [GettingStarted Getting Started]
+ * For information about upgrading and differences between releases, see [Releases] and [Upgrading].
+ * For objects and methods provided by wikitools, see [Documentation]
