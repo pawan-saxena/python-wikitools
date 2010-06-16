@@ -1,5 +1,8 @@
 #summary Downloading and installing wikitools
-
+This page details the options for downloading and installing wikitools. The instructions should work for any operating system, though they are designed mainly for Windows and Linux.
+<div style='float:right'>
+<wiki:toc max_depth="3" />
+</div>
 = Downloading =
 
 There are several options for downloading wikitools, depending on your particular platform. The files can be downloaded from this site, from the [http://code.google.com/p/python-wikitools/downloads/list Downloads tab] or from the [http://pypi.python.org/pypi/wikitools Python package index] (aka, the Cheese shop). The files are the same on both sites, however the pypi are signed. 
