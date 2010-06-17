@@ -1,0 +1,4 @@
+ * [wikitools Home]
+ * [Documentation]
+ * [GettingStarted Installation]
+ * [Releases]
