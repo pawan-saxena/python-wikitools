@@ -11,7 +11,7 @@ There are several options for downloading wikitools, depending on your particula
 There are 2 types of compressed archives available, a zip file and a gzipped tarball. The tarball can be opened with the command `tar -xzf wikitools-version.tar.gz` from a command line on Linux (or any system with the tar utility installed) or by using a program like 7zip on Windows. The zip file can be uncompressed with the built-in utility in all recent versions of Windows or with the zip command on other systems
 
 ==RPMs and Windows installer==
-The RPM files Windows installer can be installed immediately after download, no preparation is required.
+The RPM files and Windows installer can be installed immediately after download, no preparation is required.
 
 = Installing =
 
