@@ -40,7 +40,7 @@ You may need to run it as root.
 ==Alternate installation==
 In certain situations, you may not be able to install Python packages in the default location (such as a system that you do not have root access on). These instructions apply only to the source archives and cannot be done with the installer/RPM.
 
-In Python 2.6 and newer versions, the following command can be substituted for the install command [GettingStarted#Source_archives section above]:
+In Python 2.6 and newer versions, the following command can be substituted for the install command in the [GettingStarted#Source_archives section above]:
 {{{
 python setup.py install --user
 }}}
