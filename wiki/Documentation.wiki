@@ -1,18 +1,21 @@
 #summary Overview of wikitools features
 
 This page gives a brief overview of the structure of wikitools, including modules, objects, and exceptions. Functions, methods, and member variables are detailed on the linked pages. The section headers are links to documentation for the modules.  
+<wiki:toc max_depth=1 />
 
-=[api]=
+=api=
+[api.py]
 ==Objects==
  * [APIRequest]
  * [APIResult]
  * [APIListResult]
 
 ==Exceptions==
- * APIError - the base class for all API-related errors
- * APIDisabled - raised if attempting to use wikitools on a wiki with a disabled API
+ * [APIError] - the base class for all API-related errors
+ * [APIDisabled] - raised if attempting to use wikitools on a wiki with a disabled API
 
-=[wiki]=
+=wiki=
+[wiki.py]
 ==Objects==
  * [Wiki]
  * [Namespace]
@@ -22,41 +25,46 @@ This page gives a brief overview of the structure of wikitools, including module
  * [WikiError] - A base class for all errors related to the wiki and wiki pages
  * [CookiesExpired] - Raised if trying to login from previously stored cookies that are too old.
 
-=[page]=
+=page=
+[page.py]
 ==Objects==
  * [Page]
 
 ==Exceptions==
- * BadTitle - A subclass of WikiError, raised if trying to query information about an invalid page title
- * NoPage - A subclass of WikiError, raised if trying to modify or query information about a non-existent page
- * BadNamespace - A subclass of WikiError, raised if trying to create a Page object with a non-existent namespace index.
- * EditError - A subclass of WikiError, raised by certain incorrect argument usages in the edit method
- * ProtectError - A subclass of WikiError, raised by certain incorrect argument usages in the protect method
+ * [BadTitle] - A subclass of WikiError, raised if trying to query information about an invalid page title
+ * [NoPage] - A subclass of WikiError, raised if trying to modify or query information about a non-existent page
+ * [BadNamespace] - A subclass of WikiError, raised if trying to create a Page object with a non-existent namespace index.
+ * [EditError] - A subclass of WikiError, raised by certain incorrect argument usages in the edit method
+ * [ProtectError] - A subclass of WikiError, raised by certain incorrect argument usages in the protect method
 
-=[user]=
+=user=
+[user.py]
 ==Objects==
  * [User]
 
 ==Exceptions==
 _none_
 
-=[category]=
+=category=
+[category.py]
 ==Objects==
  * [Category]
 
 ==Exceptions==
 _none_
 
-=[wikifile]=
+=wikifile=
+[wikifile.py]
 ==Objects==
  * [File]
 
 ==Exceptions==
- * FileDimensionError - A subclass of WikiError, raised if trying to specify a width and a height if downloading an image
- * UploadError - A subclass of WikiError, raised by certain incorrect argument usages in the upload method
+ * [FileDimensionError] - A subclass of WikiError, raised if trying to specify a width and a height if downloading an image
+ * [UploadError] - A subclass of WikiError, raised by certain incorrect argument usages in the upload method
 
 
-=[pagelist]=
+=pagelist=
+[pagelist.py]
 ==Objects==
 _none_
 ==Exceptions==
