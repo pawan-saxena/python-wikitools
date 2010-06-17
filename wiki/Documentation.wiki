@@ -4,7 +4,7 @@ This page gives a brief overview of the structure of wikitools, including module
 <wiki:toc max_depth=1 />
 
 =api=
-[api.py]
+[api]
 ==Objects==
  * [APIRequest]
  * [APIResult]
@@ -15,7 +15,7 @@ This page gives a brief overview of the structure of wikitools, including module
  * [APIDisabled] - raised if attempting to use wikitools on a wiki with a disabled API
 
 =wiki=
-[wiki.py]
+[wiki]
 ==Objects==
  * [Wiki]
  * [Namespace]
@@ -26,7 +26,7 @@ This page gives a brief overview of the structure of wikitools, including module
  * [CookiesExpired] - Raised if trying to login from previously stored cookies that are too old.
 
 =page=
-[page.py]
+[page]
 ==Objects==
  * [Page]
 
@@ -38,7 +38,7 @@ This page gives a brief overview of the structure of wikitools, including module
  * [ProtectError] - A subclass of WikiError, raised by certain incorrect argument usages in the protect method
 
 =user=
-[user.py]
+[user]
 ==Objects==
  * [User]
 
@@ -46,7 +46,7 @@ This page gives a brief overview of the structure of wikitools, including module
 _none_
 
 =category=
-[category.py]
+[category]
 ==Objects==
  * [Category]
 
@@ -54,7 +54,7 @@ _none_
 _none_
 
 =wikifile=
-[wikifile.py]
+[wikifile]
 ==Objects==
  * [File]
 
@@ -64,7 +64,7 @@ _none_
 
 
 =pagelist=
-[pagelist.py]
+[pagelist]
 ==Objects==
 _none_
 ==Exceptions==
