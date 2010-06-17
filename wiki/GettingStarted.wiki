@@ -16,7 +16,7 @@ The RPM files and Windows installer can be installed immediately after download,
 = Installing =
 
 ==Standard installation==
-The "standard" installation installs wikitools using the standard Python installation system, into the site-packages directory, which will make wikitools available for all users on the machine:
+The "standard" installation installs wikitools using the standard Python installation location, into the site-packages directory, which will make wikitools available for all users on the machine:
 
 ===Source archives===
 After uncompressing the archive (see above), change to the recently uncompressed directory (which by default is titled "wikitools-version#") in a command line/terminal.
