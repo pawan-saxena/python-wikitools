@@ -93,7 +93,7 @@ def main():
 	except:
 		pass
 	if (todo - last).seconds > 3600 or (todo-last).days:
-		files = handleMissedRun(todo, last)
+		files = handleMissedRun(todo, last, lists)
 	else:
 		files = [getFile(todo)]
 	for f in files:
@@ -150,7 +150,7 @@ def processPage(filename, lists):
 				hitcount[title] = int(hits)
 	os.remove(filename)
 	
-def handleMissedRun(cur, last):
+def handleMissedRun(cur, last, lists):
 	print "Run missed"
 	if cur.month != last.month:
 		raise Exception("Missed runs span across months, do it manually!")
@@ -159,7 +159,11 @@ def handleMissedRun(cur, last):
 	files = []
 	for x in range(0, hours):
 		date = cur - datetime.timedelta(hours=x)
-		files.append(getFile(date))
+		#files.append(getFile(date))
+		f = getFile(date)
+		if f != 0:
+			print f
+			processPage(f, lists)
 	print repr(files)
 	return files
 	
@@ -193,8 +197,10 @@ def getFile(date):
 		if pos < 0:
 			pos = 3
 	else:
-		unlock()
-		raise Exception("File doesn't exist: "+str(date))
+		#unlock()
+		#raise Exception("File doesn't exist: "+str(date))
+		print "File doesn't exist: "+str(date)
+		return 0
 	urllib.urlretrieve(url, filename)
 	return filename
 		
@@ -259,8 +265,8 @@ def queryfailsafe(hits):
 	
 def lock(query=False):
 	filename = 'pop.lock'
-	if query:
-		filename = 'query.lock'
+	#if query:
+	#	filename = 'query.lock'
 	f = open(filename, 'r')
 	l = f.readline().split('\n')[0]
 	if l != '0':
@@ -272,8 +278,8 @@ def lock(query=False):
 	
 def unlock(query=False):
 	filename = 'pop.lock'
-	if query:
-		filename = 'query.lock'	
+	#if query:
+	#	filename = 'query.lock'	
 	f = open(filename, 'w')
 	f.write('0')
 	f.close()
@@ -324,6 +330,9 @@ def makeResults(date=None):
 		query = "SELECT title, hits, project_assess FROM `"+dbtable+"` WHERE MATCH(project_assess) AGAINST (\"'"+proj+"':\") ORDER BY hits DESC LIMIT "+str(limit)
 		cursor.execute(query)
 		result = cursor.fetchall()
+		if not result:
+			print proj, "is broken"
+			continue
 		test = result[0][2]
 		imprt_test = eval('{'+test+'}')
 		useImportance = True
@@ -583,7 +592,7 @@ if __name__ == '__main__':
 		year = int(raw_input('Year: '))
 		d = datetime.date(month=month, year=year, day=1)
 		makeResults(d)
-	elif len(sys.argv) > 1 and sys.argv[1] = '--fix-query':
+	elif len(sys.argv) > 1 and sys.argv[1] == '--fix-query':
 		os.chdir('/home/alexz/popularity/')
 		lock(query=True)
 		month = int(raw_input('Month: '))
@@ -592,7 +601,7 @@ if __name__ == '__main__':
 		cachefile = open('queryfail.data', 'rb')
 		hitcount = cPickle.load(cachefile)
 		cachefile.close()
-		addResults(date)
+		addResults(d)
 		unlock(query=True)
 	else:
 		main()
