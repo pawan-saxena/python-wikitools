@@ -539,7 +539,7 @@ def makeDataPages():
 		if p:
 			f.write(p[0]+"\n")
 			count+=1
-			if count == 1000000:
+			if count == 500000:
 				count = 0
 				listnum +=1
 				f.close()
@@ -558,7 +558,7 @@ def makeDataPages():
 		if row:
 			f.write('%s|%s\n' % (row[0], row[1]))
 			count+=1
-			if count == 500000:
+			if count == 250000:
 				count = 0
 				listnum +=1
 				f.close()
