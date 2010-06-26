@@ -15,6 +15,9 @@ The RPM files and Windows installer can be installed immediately after download,
 
 = Installing =
 
+==Checking requirements==
+wikitools is untested on Python versions older than 2.5 or any 3.x version. It may work on older 2.x versions. If using 2.5 or older, the [http://pypi.python.org/pypi/simplejson simplejson] package is required. The [http://pypi.python.org/pypi/poster poster] package is required for file upload support in all Python versions. If not present, wikitools will still work, but upload support will be disabled.  
+
 ==Standard installation==
 The "standard" installation installs wikitools using the standard Python installation location, into the site-packages directory, which will make wikitools available for all users on the machine:
 
