@@ -98,7 +98,9 @@ def main():
 		files = [getFile(todo)]
 	for f in files:
 		if f is not 0:
-			processPage(f, lists)		
+			processPage(f, lists)
+		else:
+			return
 	cachefile = open('hitcount.data', 'wb')
 	cPickle.dump(hitcount, cachefile, cPickle.HIGHEST_PROTOCOL)
 	cachefile.close()
