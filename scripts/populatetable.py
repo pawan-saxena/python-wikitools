@@ -79,7 +79,7 @@ print "Doing join"
 joinquery = """SELECT u_alexz.catpages_tmp.title, AsBinary(u_dispenser_p.coord_enwiki.gc_location) FROM u_alexz.catpages_tmp
 JOIN enwiki_p.page ON enwiki_p.page.page_title = u_alexz.catpages_tmp.title
 JOIN u_dispenser_p.coord_enwiki ON u_dispenser_p.coord_enwiki.gc_from=enwiki_p.page.page_id
-WHERE enwiki_p.templatelinks.tl_namespace=10 AND enwiki_p.page.page_namespace=0
+WHERE enwiki_p.page.page_namespace=0
 AND u_dispenser_p.coord_enwiki.gc_primary=1"""
 
 c.execute(joinquery)
