@@ -107,7 +107,7 @@ AND u_dispenser_p.coord_enwiki.gc_primary=1
 c.execute(nojpgs)
 nojpg = set(c.fetchall())
 
-requestonly = requested.difference(noimg)
+requestonly = requested.difference(nojpg)
 noimageonly = noimg.difference(requested)
 nojpgonly = nojpg.difference(requested)
 requestAndNoimg = requested.intersection(noimg) # This is also equivalent to being in all 3 categories, since if an article has no image, then it also has no jpg
