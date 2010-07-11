@@ -1,0 +1,7 @@
+#summary The APIResult object
+
+An APIResult object is returned by most calls to [APIRequest#query APIRequest.query]. It is a subtype of the Python dict type and is identical in almost all ways. See the [http://docs.python.org/library/stdtypes.html#mapping-types-dict Python documentation] for full documentation. APIResult also includes a <var>response</var> member variable that includes HTTP response headers for debugging purposes. 
+
+In general, there is no reason to ever need to create an APIResult object (they're created automatically when needed), and they can, for all intents and purposes, be treated as a dict.
+
+The format of the actual data in the object is dependent on the API module being queried; see the [http://www.mediawiki.org/wiki/API API documentation] for more information.
