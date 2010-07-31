@@ -2,9 +2,9 @@
 
 api.py is a module used for communication with the wiki. It is always used, though not always necessary to import directly.
 
-api.py contains three object definitions, APIRequest, APIResult, and APIListResult. Of these, APIRequest is the only one that will typically need to be used in a program.
+api.py contains three object definitions, [APIRequest], [APIResult], and [APIListResult]. Of these, APIRequest is the only one that will typically need to be used in a program.
 
-api.py also contains 2 exception definitions, APIError and APIDisabled.
+api.py also contains 2 exception definitions, [APIError] and [APIDisabled].
 
 =Functions=
 
