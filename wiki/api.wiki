@@ -23,7 +23,7 @@ api.py also contains 2 exception definitions, APIError and APIDisabled.
  * re
  * time
  * sys
- * urllib.quote_plus, urllib._is_unicode
+ * urllib.quote_plus, urllib.is_unicode
  * poster.encode.multipart_encode
  * json or simplejson (still imported as json)
  * gzip
