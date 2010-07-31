@@ -11,8 +11,8 @@ This page gives a brief overview of the structure of wikitools, including module
  * [APIListResult]
 
 ==Exceptions==
- * [APIError] - the base class for all API-related errors
- * [APIDisabled] - raised if attempting to use wikitools on a wiki with a disabled API
+ * [APIError]
+ * [APIDisabled]
 
 =wiki=
 [wiki]
