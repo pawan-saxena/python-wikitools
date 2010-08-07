@@ -119,7 +119,7 @@ def checklag():
 	global connections, useAPI
 	waited = False
 	try:
-		testdb = MySQLdb.connect(db='enwiki_p', host="sql-s1-fast", read_default_file="/home/alexz/.my.cnf")
+		testdb = MySQLdb.connect(db='enwiki_p', host="sql-s1-rr", read_default_file="/home/alexz/.my.cnf")
 		testcursor = testdb.cursor()
 	except: # server down
 		useAPI = True
@@ -157,7 +157,7 @@ def checklag():
 		return True
 	return False
 
-db = MySQLdb.connect(db='enwiki_p', host="sql-s1-fast", read_default_file="/home/alexz/.my.cnf")
+db = MySQLdb.connect(db='enwiki_p', host="sql-s1-rr", read_default_file="/home/alexz/.my.cnf")
 cursor = db.cursor()
 	
 def getStart():
