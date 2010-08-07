@@ -3,6 +3,7 @@
 
 import MySQLdb
 import os.path
+import time
 
 def lagcheck(host, database):
 	query = 'SELECT UNIX_TIMESTAMP() - UNIX_TIMESTAMP(rc_timestamp) FROM recentchanges ORDER BY rc_timestamp DESC LIMIT 1'
@@ -22,14 +23,16 @@ def lagcheck(host, database):
 def main():
 	servers = [('s1', 'enwiki_p'), ('s2', 'enwiktionary_p'), ('s3', 'frwiktionary_p'), 
 	('s4', 'commonswiki_p'), ('s5', 'dewiki_p'), ('s6', 'frwiki_p')]
-	for s in servers:
-		lagcheck(s[0], s[1])
-	try:
-		db = MySQLdb.connect(db='u_alexz',host="sql",read_default_file="/home/alexz/.my.cnf")
-		cursor = db.cursor()
-		serverup('sql')
-	except:
-		serverdown('sql')
+	while True:
+		for s in servers:
+			lagcheck(s[0], s[1])
+		try:
+			db = MySQLdb.connect(db='u_alexz',host="sql",read_default_file="/home/alexz/.my.cnf")
+			cursor = db.cursor()
+			serverup('sql')
+		except:
+			serverdown('sql')
+		time.sleep(300)
 		
 def highlag(server):
 	f = open('/home/alexz/public_html/messages/'+server+'-replag', 'wb')
