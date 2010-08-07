@@ -395,7 +395,7 @@ def setup():
 def makeTempTables():
 	date = datetime.datetime.utcnow()+datetime.timedelta(days=15)	
 	table = date.strftime('pop_%b%y')
-	db = MySQLdb.connect(host="sql-s1", db='u_alexz', read_default_file="/home/alexz/.my.cnf")
+	db = MySQLdb.connect(host="sql-s1-user", db='u_alexz', read_default_file="/home/alexz/.my.cnf")
 	cursor = db.cursor()
 	try:
 		cursor.execute("DROP TABLE %s" % table)
@@ -432,7 +432,7 @@ def setupProject(project, abbrv):
 	site.setMaxlag(-1)
 	date = datetime.datetime.utcnow()+datetime.timedelta(days=15)	
 	table = date.strftime('pop_%b%y')
-	db = MySQLdb.connect(host="sql-s1", read_default_file="/home/alexz/.my.cnf")
+	db = MySQLdb.connect(host="sql-s1-user", read_default_file="/home/alexz/.my.cnf")
 	cursor = db.cursor()
 	projecttitles = set()
 	project = project.replace(' ', '_')
@@ -489,7 +489,7 @@ def getBLPs():
 	site.setMaxlag(-1)
 	date = datetime.datetime.utcnow()+datetime.timedelta(days=15)	
 	table = date.strftime('pop_%b%y')
-	db = MySQLdb.connect(host="sql-s1", read_default_file="/home/alexz/.my.cnf")
+	db = MySQLdb.connect(host="sql-s1-user", read_default_file="/home/alexz/.my.cnf")
 	cursor = db.cursor()
 	insertquery = 'INSERT INTO u_alexz.'+table+' (title, project_assess) VALUES( %s, %s )'
 	updatequery = 'UPDATE u_alexz.'+table+' SET project_assess=CONCAT(project_assess,",",%s) WHERE title=%s'
@@ -511,7 +511,7 @@ def getBLPs():
 	db.close()	
 	
 def addRedirects():
-	db = MySQLdb.connect(host="sql-s1", read_default_file="/home/alexz/.my.cnf")
+	db = MySQLdb.connect(host="sql-s1-user", read_default_file="/home/alexz/.my.cnf")
 	cursor = db.cursor()
 	date = datetime.datetime.utcnow()+datetime.timedelta(days=15)	
 	table = date.strftime('pop_%b%y')
@@ -530,7 +530,7 @@ def makeDataPages():
 	date = datetime.datetime.utcnow()+datetime.timedelta(days=15)	
 	table = date.strftime('pop_%b%y')
 	lists = date.strftime('.%b%y')
-	db = MySQLdb.connect(host="sql-s1", db='u_alexz', read_default_file="/home/alexz/.my.cnf")
+	db = MySQLdb.connect(host="sql-s1-user", db='u_alexz', read_default_file="/home/alexz/.my.cnf")
 	cursor = db.cursor(cursors.SSCursor)
 	f = open('pagelist'+lists+'.1', 'ab')
 	cursor.execute('SELECT title FROM '+table)
@@ -573,9 +573,9 @@ def makeDataPages():
 def moveTables():
 	date = datetime.datetime.utcnow()+datetime.timedelta(days=15)	
 	table = date.strftime('pop_%b%y')
-	db = MySQLdb.connect(host="sql-s1", db='u_alexz', read_default_file="/home/alexz/.my.cnf")
+	db = MySQLdb.connect(host="sql-s1-user", db='u_alexz', read_default_file="/home/alexz/.my.cnf")
 	cursor = db.cursor()
-	cmd = 'mysqldump -h sql-s1 --quick u_alexz %s > dump.sql' % table
+	cmd = 'mysqldump -h sql-s1-user --quick u_alexz %s > dump.sql' % table
 	os.system(cmd)
 	cmd = 'mysql -h sql u_alexz < dump.sql'
 	os.system(cmd)

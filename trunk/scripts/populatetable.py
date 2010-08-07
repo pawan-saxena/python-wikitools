@@ -54,7 +54,7 @@ c.execute("""CREATE TABLE IF NOT EXISTS u_alexz.catpages_tmp (
 c.execute("TRUNCATE TABLE u_alexz.catpages_tmp")
 
 insquery = """INSERT IGNORE INTO u_alexz.catpages_tmp (title)
-SELECT enwiki_p.page.page_title FROM enwiki_p.page
+SELECT /* SLOW_OK */ enwiki_p.page.page_title FROM enwiki_p.page
 JOIN enwiki_p.categorylinks ON enwiki_p.page.page_id=enwiki_p.categorylinks.cl_from
 WHERE enwiki_p.page.page_namespace=1 AND enwiki_p.categorylinks.cl_to=%s"""
 
@@ -76,7 +76,7 @@ f.close()
 # JOIN AGAINST TEMPLATELINKS
 print "Doing join"
 
-joinquery = """SELECT u_alexz.catpages_tmp.title, AsBinary(u_dispenser_p.coord_enwiki.gc_location) FROM u_alexz.catpages_tmp
+joinquery = """SELECT /* SLOW_OK */ u_alexz.catpages_tmp.title, AsBinary(u_dispenser_p.coord_enwiki.gc_location) FROM u_alexz.catpages_tmp
 JOIN enwiki_p.page ON enwiki_p.page.page_title = u_alexz.catpages_tmp.title
 JOIN u_dispenser_p.coord_enwiki ON u_dispenser_p.coord_enwiki.gc_from=enwiki_p.page.page_id
 WHERE enwiki_p.page.page_namespace=0
@@ -86,7 +86,7 @@ c.execute(joinquery)
 requested = set(c.fetchall())
 
 print "Getting pages w/ no images"
-noimages = """SELECT page_title, AsBinary(u_dispenser_p.coord_enwiki.gc_location) FROM enwiki_p.page 
+noimages = """SELECT /* SLOW_OK */ page_title, AsBinary(u_dispenser_p.coord_enwiki.gc_location) FROM enwiki_p.page 
 JOIN u_dispenser_p.coord_enwiki ON u_dispenser_p.coord_enwiki.gc_from=enwiki_p.page.page_id 
 WHERE page_namespace=0 AND page_is_redirect=0 AND 
 (SELECT il_to FROM enwiki_p.imagelinks WHERE il_from=page_id LIMIT 1) IS NULL 
@@ -97,10 +97,10 @@ c.execute(noimages)
 noimg = set(c.fetchall())
 
 print "Getting pages w/ no jpgs"
-nojpgs = """SELECT page_title, AsBinary(u_dispenser_p.coord_enwiki.gc_location) FROM enwiki_p.page 
+nojpgs = """SELECT /* SLOW_OK */ page_title, AsBinary(u_dispenser_p.coord_enwiki.gc_location) FROM enwiki_p.page 
 JOIN u_dispenser_p.coord_enwiki ON u_dispenser_p.coord_enwiki.gc_from=enwiki_p.page.page_id 
 WHERE page_namespace=0 AND page_is_redirect=0 AND 
-(SELECT il_to FROM enwiki_p.imagelinks WHERE il_from=page_id AND (il_to LIKE "%\.jpg" OR il_to LIKE "%\.jpeg") LIMIT 1) IS NULL 
+(SELECT il_to FROM enwiki_p.imagelinks WHERE il_from=page_id AND (il_to LIKE "%.jpg" OR il_to LIKE "%.jpeg") LIMIT 1) IS NULL 
 AND u_dispenser_p.coord_enwiki.gc_primary=1
 """
 
@@ -203,7 +203,7 @@ c2.execute("""CREATE TABLE IF NOT EXISTS `photocoords` (
 c2.execute("COMMIT")
 
 c2.execute("START TRANSACTION")
-c2.execute("INSERT INTO `photocoords` SELECT * FROM `photocoords_2`")
+c2.execute("INSERT /* SLOW_OK */ INTO `photocoords` SELECT * FROM `photocoords_2`")
 c2.execute("COMMIT")
 
 c2.execute("START TRANSACTION")

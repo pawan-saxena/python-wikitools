@@ -73,7 +73,7 @@ WHERE clA.cl_to="Living_people" AND clB.cl_to="All_articles_lacking_sources" AND
 ORDER BY page_title ASC"""
 
 def main():
-	db = MySQLdb.connect(host="sql-s1", db='enwiki_p', read_default_file="/home/alexz/.my.cnf")
+	db = MySQLdb.connect(host="sql-s1-rr", db='enwiki_p', read_default_file="/home/alexz/.my.cnf")
 	cursor = db.cursor()
 	cursor.execute(query)
 	while True:

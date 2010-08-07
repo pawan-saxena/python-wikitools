@@ -24,7 +24,6 @@ def main():
 	('s4', 'commonswiki_p'), ('s5', 'dewiki_p'), ('s6', 'frwiki_p')]
 	for s in servers:
 		lagcheck(s[0], s[1])
-		lagcheck(s[0]+'-fast', s[1])		
 	try:
 		db = MySQLdb.connect(db='u_alexz',host="sql",read_default_file="/home/alexz/.my.cnf")
 		cursor = db.cursor()
