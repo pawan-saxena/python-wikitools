@@ -135,7 +135,6 @@ try:
 except:
 	pass
 
-c2.execute("START TRANSACTION")
 c2.execute(""" CREATE TABLE IF NOT EXISTS `photocoords_2` (
   `title` varchar(255) CHARACTER SET utf8 COLLATE utf8_bin DEFAULT NULL,
   `coordinate` point NOT NULL,
@@ -145,36 +144,23 @@ c2.execute(""" CREATE TABLE IF NOT EXISTS `photocoords_2` (
   UNIQUE KEY `title` (`title`),
   SPATIAL KEY `coordinate` (`coordinate`)
 ) ENGINE=MyISAM""")
-c2.execute("COMMIT")
 
-c2.execute("START TRANSACTION")
 c2.execute("TRUNCATE TABLE photocoords_2")
-c2.execute("COMMIT")
 
-c2.execute("START TRANSACTION")
 for entry in requestonly:
 		c2.execute(insquery2, (entry[0], entry[1]))
-c2.execute("COMMIT")
 del requestonly
-c2.execute("START TRANSACTION")
 for entry in noimageonly:
 		c2.execute(insquery3, (entry[0], entry[1]))
-c2.execute("COMMIT")
 del noimageonly
-c2.execute("START TRANSACTION")
 for entry in nojpgonly:
 		c2.execute(insquery4, (entry[0], entry[1]))
-c2.execute("COMMIT")
 del nojpgonly
-c2.execute("START TRANSACTION")
 for entry in requestAndNojpg:
 		c2.execute(insquery5, (entry[0], entry[1]))
-c2.execute("COMMIT")
 del requestAndNojpg
-c2.execute("START TRANSACTION")
 for entry in requestAndNoimg:
 		c2.execute(insquery6, (entry[0], entry[1]))
-c2.execute("COMMIT")
 del requestAndNoimg
 
 # MAIN TABLE POPULATED
@@ -185,13 +171,10 @@ c2 = db2.cursor()
 db = MySQLdb.connect(host="sql-s1", read_default_file="/home/alexz/.my.cnf")
 c = db.cursor()
 try:
-	c2.execute("START TRANSACTION")
 	c2.execute("DROP TABLE photocoords")
-	c2.execute("COMMIT")
 except:
 	pass
 
-c2.execute("START TRANSACTION")
 c2.execute("""CREATE TABLE IF NOT EXISTS `photocoords` (
   `title` varchar(255) CHARACTER SET utf8 COLLATE utf8_bin DEFAULT NULL,
   `coordinate` point NOT NULL,
@@ -200,21 +183,14 @@ c2.execute("""CREATE TABLE IF NOT EXISTS `photocoords` (
   `nojpg` tinyint(1) DEFAULT '0',
   SPATIAL KEY `coordinate` (`coordinate`)
 ) ENGINE=MyISAM""")
-c2.execute("COMMIT")
 
-c2.execute("START TRANSACTION")
 c2.execute("INSERT /* SLOW_OK */ INTO `photocoords` SELECT * FROM `photocoords_2`")
-c2.execute("COMMIT")
 
-c2.execute("START TRANSACTION")
 c2.execute("DROP TABLE `photocoords_2`")
-c2.execute("COMMIT")
 
 # TABLES MOVED
 # CLEANUP
-c.execute("START TRANSACTION")
 c.execute("DROP TABLE u_alexz.catpages_tmp")
-c.execute("COMMIT")
 
 db.close()
 db2.close()
