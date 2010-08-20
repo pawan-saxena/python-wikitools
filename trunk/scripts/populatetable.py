@@ -100,7 +100,7 @@ print "Getting pages w/ no jpgs"
 nojpgs = """SELECT /* SLOW_OK */ page_title, AsBinary(u_dispenser_p.coord_enwiki.gc_location) FROM enwiki_p.page 
 JOIN u_dispenser_p.coord_enwiki ON u_dispenser_p.coord_enwiki.gc_from=enwiki_p.page.page_id 
 WHERE page_namespace=0 AND page_is_redirect=0 AND 
-(SELECT il_to FROM enwiki_p.imagelinks WHERE il_from=page_id AND (il_to LIKE "%.jpg" OR il_to LIKE "%.jpeg") LIMIT 1) IS NULL 
+(CONVERT(il_to USING latin1) COLLATE latin1_swedish_ci LIKE "%.jpg" OR CONVERT(il_to USING latin1) COLLATE latin1_swedish_ci LIKE "%.jpeg") LIMIT 1) IS NULL 
 AND u_dispenser_p.coord_enwiki.gc_primary=1
 """
 
