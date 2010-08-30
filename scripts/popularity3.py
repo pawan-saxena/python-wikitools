@@ -576,21 +576,21 @@ def makeDataPages():
 	cursor.close()
 	
 def makeJSList():
-db = MySQLdb.connect(host="sql", db='u_alexz', read_default_file="/home/alexz/.my.cnf")
-cursor = db.cursor()
-cursor.execute('SELECT abbrv, proj_name FROM project_config')
-projects = {}
-while True:
-	row = cursor.fetchone()
-	if row:
-		projects[row[0]] = row[1]
-	else:
-		break
-f = open('../public_html/pop/projectinfo.js', 'wb')
-f.write('var projectinfo = ')
-json.dump(projects, f)
-f.close()
-cursor.close()
+	db = MySQLdb.connect(host="sql", db='u_alexz', read_default_file="/home/alexz/.my.cnf")
+	cursor = db.cursor()
+	cursor.execute('SELECT abbrv, proj_name FROM project_config')
+	projects = {}	
+	while True:
+		row = cursor.fetchone()
+		if row:
+			projects[row[0]] = row[1]
+		else:
+			break
+	f = open('../public_html/pop/projectinfo.js', 'wb')
+	f.write('var projectinfo = ')
+	json.dump(projects, f)
+	f.close()
+	cursor.close()
 	
 def moveTables():
 	date = datetime.datetime.utcnow()+datetime.timedelta(days=15)	
