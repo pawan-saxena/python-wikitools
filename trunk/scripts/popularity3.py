@@ -14,6 +14,10 @@ import subprocess
 import time
 import locale
 import cPickle
+try:
+	import json
+except:
+	import simplejson as json
 
 class ProjectLister(object):
 
@@ -364,7 +368,7 @@ def makeResults(date=None):
 					imp = imp.lower()
 				tem = importancetemplates[imp]
 				table+= "| " + tem + "\n"
-		table += "|}"
+		table += "|}\n[[Category:Lists of popular pages by WikiProject]]"
 		res = target.edit(newtext=table, summary="Popularity stats for "+projects[proj].name, section=str(section))
 		if 'new' in res['edit']:
 			notifyProject(projects[proj].name, projects[proj].listpage, site)
@@ -390,6 +394,7 @@ def setup():
 	getBLPs()
 	addRedirects()
 	makeDataPages()
+	makeJSList()
 	moveTables()
 	
 def makeTempTables():
@@ -569,6 +574,23 @@ def makeDataPages():
 			break
 	f.close()
 	cursor.close()
+	
+def makeJSList():
+db = MySQLdb.connect(host="sql", db='u_alexz', read_default_file="/home/alexz/.my.cnf")
+cursor = db.cursor()
+cursor.execute('SELECT abbrv, proj_name FROM project_config')
+projects = {}
+while True:
+	row = cursor.fetchone()
+	if row:
+		projects[row[0]] = row[1]
+	else:
+		break
+f = open('../public_html/pop/projectinfo.js', 'wb')
+f.write('var projectinfo = ')
+json.dump(projects, f)
+f.close()
+cursor.close()
 	
 def moveTables():
 	date = datetime.datetime.utcnow()+datetime.timedelta(days=15)	
