@@ -4,7 +4,7 @@ import MySQLdb
 import os
 import sys
 
-db = MySQLdb.connect(host="sql-s1", read_default_file="/home/alexz/.my.cnf")
+db = MySQLdb.connect(host="sql-s1-user", read_default_file="/home/alexz/.my.cnf")
 c = db.cursor()
 
 # SETUP DONE
@@ -168,7 +168,7 @@ del requestAndNoimg
 print "Moving tables"
 db2 = MySQLdb.connect(db='u_alexz', host="sql", read_default_file="/home/alexz/.my.cnf")
 c2 = db2.cursor()
-db = MySQLdb.connect(host="sql-s1", read_default_file="/home/alexz/.my.cnf")
+db = MySQLdb.connect(host="sql-s1-user", read_default_file="/home/alexz/.my.cnf")
 c = db.cursor()
 try:
 	c2.execute("DROP TABLE photocoords")
