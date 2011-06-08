@@ -1,5 +1,6 @@
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
+#$ -m bae
 from ircbot import SingleServerIRCBot
 from wikitools import *
 import settings
@@ -241,7 +242,7 @@ def main():
 		raise Exception("Lists not initialised")
 	listcheck = time.time()
 	Cchannel = "#wikipedia-en-abuse-log"
-	Cserver = "chat.eu.freenode.net"
+	Cserver = "irc.freenode.net"
 	nickname = "MrZ-bot"
 	cbot = CommandBot(Cchannel, nickname, Cserver)
 	cThread = BotRunnerThread(cbot)
@@ -352,7 +353,7 @@ def reportUser(u, filter=None, hit=None):
 		line = "\n* {{IPvandal|%s}} - " % (username)
 	else:
 		line = "\n* {{Vandal|%s}} - " % (username)
-	line = line.encode('utf8')
+	line = line.decode('utf8')
 	line += reason+" ~~~~"
 	try:
 		AIV.edit(appendtext=line, summary=editsum)

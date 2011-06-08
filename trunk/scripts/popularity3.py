@@ -55,7 +55,7 @@ articletypes = {'unassessed':'{{unassessed-Class}}', 'file':'{{File-Class}}', 'b
 
 importancetemplates = {'top':'{{Top-importance}}', 'high':'{{High-importance}}', 'mid':'{{Mid-importance}}',
 	'low':'{{Low-importance}}', 'bottom':'{{Bottom-importance}}', 'no':'{{No-importance}}', 'na':'{{NA-importance}}',
-	'unknown':'{{-importance}}', None:'{{-importance}}' }
+	'unknown':'{{-importance}}', 'related':'{{No-importance}}', None:'{{-importance}}' }
 	
 # Manual run options:
 # * --setup - runs setup
@@ -104,6 +104,7 @@ def main():
 		if f is not 0:
 			processPage(f, lists)
 		else:
+			unlock()
 			return
 	cachefile = open('hitcount.data', 'wb')
 	cPickle.dump(hitcount, cachefile, cPickle.HIGHEST_PROTOCOL)
@@ -176,7 +177,7 @@ def handleMissedRun(cur, last, lists):
 	
 def getFile(date):
 	page = date.strftime('pagecounts-%Y%m%d-%H0000.gz')
-	url = "http://mituzas.lt"
+	url = "http://dom.as"
 	main = "/wikistats/"
 	if checkExist(main+page):
 		url += main + page
@@ -212,7 +213,7 @@ def getFile(date):
 	return filename
 		
 def checkExist(testurl):
-	conn = httplib.HTTPConnection('mituzas.lt')
+	conn = httplib.HTTPConnection('dom.as')
 	conn.request('HEAD', testurl)
 	r = conn.getresponse()
 	if r.status == 404 or r.status == 500:
@@ -220,8 +221,8 @@ def checkExist(testurl):
 		return False
 	else:
 		cl = int(r.getheader('content-length'))
-		if cl < 26214400: #25 MB
-			return False
+		#if cl < 26214400: #25 MB
+		#	return False
 		conn.close()
 		return True
 		
@@ -398,7 +399,7 @@ def setup():
 	moveTables()
 	
 def makeTempTables():
-	date = datetime.datetime.utcnow()+datetime.timedelta(days=15)	
+	date = datetime.datetime.utcnow()+datetime.timedelta(days=5)	
 	table = date.strftime('pop_%b%y')
 	db = MySQLdb.connect(host="sql-s1-user", db='u_alexz', read_default_file="/home/alexz/.my.cnf")
 	cursor = db.cursor()
@@ -416,7 +417,6 @@ def makeTempTables():
 		`hits` int(10) NOT NULL DEFAULT '0',
 		`project_assess` text NOT NULL,
 		UNIQUE KEY `title` (`title`),
-		KEY `hits` (`hits`),
 		FULLTEXT KEY `project_asssess` (`project_assess`)
 		) ENGINE=MyISAM ROW_FORMAT=DYNAMIC""" % (table)
 	query2 = """CREATE TABLE `redirect_map` (
@@ -435,7 +435,7 @@ def setupProject(project, abbrv):
 	site = wiki.Wiki()
 	site.login(settings.bot, settings.botpass)
 	site.setMaxlag(-1)
-	date = datetime.datetime.utcnow()+datetime.timedelta(days=15)	
+	date = datetime.datetime.utcnow()+datetime.timedelta(days=5)	
 	table = date.strftime('pop_%b%y')
 	db = MySQLdb.connect(host="sql-s1-user", read_default_file="/home/alexz/.my.cnf")
 	cursor = db.cursor()
@@ -461,7 +461,8 @@ def setupProject(project, abbrv):
 		if not catpage.exists:
 			continue
 		catpage.setNamespace(0)
-		catname = catpage.title.replace(' ', '_')
+		catname = catpage.title.replace(' ', '_').encode('utf-8')
+		print catname
 		cursor.execute(selectquery, (catname))
 		pagesincat = cursor.fetchall()
 		for title in pagesincat:			
@@ -492,7 +493,7 @@ def getBLPs():
 	site = wiki.Wiki()
 	site.login(settings.bot, settings.botpass)
 	site.setMaxlag(-1)
-	date = datetime.datetime.utcnow()+datetime.timedelta(days=15)	
+	date = datetime.datetime.utcnow()+datetime.timedelta(days=5)	
 	table = date.strftime('pop_%b%y')
 	db = MySQLdb.connect(host="sql-s1-user", read_default_file="/home/alexz/.my.cnf")
 	cursor = db.cursor()
@@ -518,7 +519,7 @@ def getBLPs():
 def addRedirects():
 	db = MySQLdb.connect(host="sql-s1-user", read_default_file="/home/alexz/.my.cnf")
 	cursor = db.cursor()
-	date = datetime.datetime.utcnow()+datetime.timedelta(days=15)	
+	date = datetime.datetime.utcnow()+datetime.timedelta(days=5)	
 	table = date.strftime('pop_%b%y')
 	query = """INSERT IGNORE INTO u_alexz.redirect_map (from_title, to_title)
 		SELECT DISTINCT(enwiki_p.page.page_title), u_alexz.%(table)s.title
@@ -532,7 +533,7 @@ def addRedirects():
 	db.close()	
 	
 def makeDataPages():
-	date = datetime.datetime.utcnow()+datetime.timedelta(days=15)	
+	date = datetime.datetime.utcnow()+datetime.timedelta(days=5)	
 	table = date.strftime('pop_%b%y')
 	lists = date.strftime('.%b%y')
 	db = MySQLdb.connect(host="sql-s1-user", db='u_alexz', read_default_file="/home/alexz/.my.cnf")
@@ -593,7 +594,7 @@ def makeJSList():
 	cursor.close()
 	
 def moveTables():
-	date = datetime.datetime.utcnow()+datetime.timedelta(days=15)	
+	date = datetime.datetime.utcnow()+datetime.timedelta(days=5)	
 	table = date.strftime('pop_%b%y')
 	db = MySQLdb.connect(host="sql-s1-user", db='u_alexz', read_default_file="/home/alexz/.my.cnf")
 	cursor = db.cursor()

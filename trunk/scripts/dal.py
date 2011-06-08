@@ -66,7 +66,7 @@ def main():
 		traceback.print_exc()
 
 def sendEmail(mail, subj):
-	fromaddr = "mrzmanwiki@gmail.com"
+	fromaddr = "mrzmanwiki.dal@gmail.com"
 	toaddr = ["daily-article-l@lists.wikimedia.org", "mrzmanwikimail@gmail.com"]
 	#toaddr = ["mrzmanwikimail@gmail.com"]
 	msg = MIMENonMultipart('text', 'plain')
@@ -169,7 +169,20 @@ def getQuote(QOTD):
 	if len(text) < 30:
 		text = lines[4]
 	text = text.split('| align=center |')[1]
-	name = quotename.search(text).group(1)
+	namesearch = quotename.search(text)
+	if namesearch is not None:
+		name = namesearch.group(1)
+	else:
+		namesearch = quotename.search(lines[4])
+		if namesearch is not None:
+			name = namesearch.group(1)
+        	else:
+			namesearch = quotename.search(lines[5])
+               		if namesearch is not None:
+                   		name = namesearch.group(1)
+                	else:
+				namesearch = quotename.search(lines[6])
+				name = namesearch.group(1)
 	if '|' in name:
 		name = name.split('|')[0]
 	text = quotename.sub('', text)
