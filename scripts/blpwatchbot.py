@@ -1,5 +1,6 @@
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
+#$ -m ae
 
 from wikitools import *
 import settings
