@@ -1,5 +1,7 @@
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
+#$ -m ae
+# -*- coding: utf-8 -*-
 from wikitools import *
 from email.MIMENonMultipart import MIMENonMultipart
 from email.MIMEText import MIMEText
@@ -8,6 +10,7 @@ import settings, datetime, re, htmlentitydefs, urllib, codecs, smtplib, sys
 TFAreg = re.compile(".*?\n([^\n]*'''\[\[.*?)\|more\.\.\.\]\]'''\)", re.I|re.S)
 TFAregalt = re.compile("([^\n]*'''\[\[.*?)\|more\.\.\.\]\]'''\)", re.I|re.S)
 TFAtitle = re.compile("\('''\[\[(.*?)\|more\.\.\.\]\]'''")
+TFAtitlealt = re.compile("\(\[\[(.*?)\|'''more\.\.\.'''\]\]")
 anivreg = re.compile("'''\s?\"?\[\[(.*?)\]\][a-z]?\"?[\.\,]?\s?'''")
 anivyear = re.compile("\{\{\*mp\}\}\s*\[\[(?P<year>[0-9]*)(?P<suf> AD| CE| BC| BCE)?\]\] +(&ndash;|–)")
 anivpicture = re.compile("\([^\)]*?pictured\)", re.I)
@@ -221,7 +224,10 @@ def getanivs(SA):
 			lines2.append(line)
 	anivs = {}
 	for line in lines2:
-		title = anivreg.search(line).group(1)
+		try:
+			title = anivreg.search(line).group(1)
+		except:
+			continue
 		if '|' in title:
 			title = title.split('|')[0]
 		res = anivyear.search(line)
@@ -240,12 +246,21 @@ def getTFA(TFA):
 	if not p.exists:
 		raise Exception("ERROR: TFA doesn't exist O_o")
 	text = p.getWikiText(expandtemplates=True)
-	title = TFAtitle.search(text).group(1)
+	try:
+		title = TFAtitle.search(text).group(1)
+	except:
+		title = TFAtitlealt.search(text).group(1)
 	TFAtext = TFAreg.sub(r'\1', text)
-	TFAtext = TFAtext.rsplit("('''", 1)[0]
+	TFAtext = TFAtext.rsplit("([[", 1)[0]
 	if len(TFAtext) < 10:
 		TFAtext = TFAregalt.sub(r'\1', text)
-		TFAtext = TFAtext.rsplit("('''", 1)[0]
+		TFAtext = TFAtext.rsplit("([[", 1)[0]
+	if TFAtext.splitlines()[0].startswith('<div'):
+		lines = TFAtext.splitlines()
+		del lines[0]
+		if lines[0] == '':
+			del lines[0]
+		TFAtext = '\n'.join(lines)
 	pt = page.Page(enwiki, title)
 	TFA = {pt.title: killFormatting(TFAtext).strip()}
 	return TFA
